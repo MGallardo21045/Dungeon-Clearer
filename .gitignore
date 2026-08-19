@@ -1,0 +1,12 @@
+/build/
+
+.vs/
+*.user
+*.suo
+
+.vscode/
+
+*.obj
+*.exe
+*.dll
+*.pdb
