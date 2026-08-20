@@ -17,6 +17,8 @@ FetchContent_MakeAvailable(SDL3)
 
 add_executable(DungeonClearer
     src/main.cpp
+    src/Game.cpp
+    src/Player.cpp
 )
 
 target_link_libraries(DungeonClearer PRIVATE SDL3::SDL3)
