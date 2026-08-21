@@ -78,12 +78,12 @@ void Game::processInput()
 {
     SDL_Event event;
 
-    while (SDL_PollEvent(&event))
-    {
-        if (event.type == SDL_EVENT_QUIT)
-        {
+    while (SDL_PollEvent(&event)) {
+        if (event.type == SDL_EVENT_QUIT) {
             running = false;
         }
+        
+        player.handleEvent(event);
     }
 }
 
@@ -98,6 +98,7 @@ void Game::render()
     SDL_RenderClear(renderer);
 
     player.render(renderer);
+    player.renderPunch(renderer);
 
     SDL_RenderPresent(renderer);
 }
