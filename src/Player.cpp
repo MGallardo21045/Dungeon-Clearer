@@ -6,40 +6,19 @@ Player::Player()
       speed(200.0f),
       facing(Direction::Down),
       isPunching(false),
-      punchTimer(0.0f)
+      punchTimer(0.0f),
+      punchHasHit(false)
 {
 }
 
 void Player::update(float deltaTime)
 {
-    const bool* keyboard = SDL_GetKeyboardState(nullptr);
-
-    if (keyboard[SDL_SCANCODE_W]) {
-        y -= speed * deltaTime; 
-        facing = Direction::Up;
-    }
-    if (keyboard[SDL_SCANCODE_S]) {
-        y += speed * deltaTime; 
-        facing = Direction::Down;
-    }
-    if (keyboard[SDL_SCANCODE_A]) {
-        x -= speed * deltaTime; 
-        facing = Direction::Left;
-    }
-    if (keyboard[SDL_SCANCODE_D]) {
-        x += speed * deltaTime; 
-        facing = Direction::Right;
-    }
-
-    if (x < 0.0f) x = 0.0f;
-    if (x > 750.0f) x = 750.0f;
-
-    if (y < 0.0f) y = 0.0f;
-    if (y > 550.0f) y = 550.0f;
-
-    if (isPunching) {
+    if (isPunching)
+    {
         punchTimer -= deltaTime;
-        if (punchTimer <= 0.0f) {
+
+        if (punchTimer <= 0.0f)
+        {
             isPunching = false;
             punchTimer = 0.0f;
         }
@@ -117,4 +96,91 @@ void Player::handleEvent(const SDL_Event& event)
             punchTimer = punchDuration;
         }
     }
+    if (event.key.scancode == SDL_SCANCODE_SPACE && !isPunching) {
+        isPunching = true;
+        punchTimer = punchDuration;
+        punchHasHit = false;
+    }
+}
+
+bool Player::isPunchActive() const
+{
+    return isPunching;
+}
+
+SDL_FRect Player::getPunchBounds() const
+{
+    switch (facing)
+    {
+        case Direction::Up:
+            return { x + 10.0f, y - 30.0f, 30.0f, 30.0f };
+
+        case Direction::Down:
+            return { x + 10.0f, y + 50.0f, 30.0f, 30.0f };
+
+        case Direction::Left:
+            return { x - 30.0f, y + 10.0f, 30.0f, 30.0f };
+
+        case Direction::Right:
+            return { x + 50.0f, y + 10.0f, 30.0f, 30.0f };
+    }
+
+    return { 0, 0, 0, 0 };
+}
+
+SDL_FRect Player::getBounds() const
+{
+    return { x, y, 50.0f, 50.0f };
+}
+
+float Player::getX() const
+{
+    return x;
+}
+
+float Player::getY() const
+{
+    return y;
+}
+
+void Player::setPosition(float newX, float newY)
+{
+    x = newX;
+    y = newY;
+}
+
+void Player::moveX(float amount)
+{
+    x += amount;
+
+    if (x < 0.0f) x = 0.0f;
+    if (x > 750.0f) x = 750.0f;
+}
+
+void Player::moveY(float amount)
+{
+    y += amount;
+
+    if (y < 0.0f) y = 0.0f;
+    if (y > 550.0f) y = 550.0f;
+}
+
+float Player::getSpeed() const
+{
+    return speed;
+}
+
+void Player::setFacing(Direction newFacing)
+{
+    facing = newFacing;
+}
+
+bool Player::hasPunchHit() const
+{
+    return punchHasHit;
+}
+
+void Player::markPunchHit()
+{
+    punchHasHit = true;
 }

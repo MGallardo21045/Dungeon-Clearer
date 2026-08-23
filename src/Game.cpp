@@ -3,7 +3,8 @@
 Game::Game()
     : window(nullptr),
       renderer(nullptr),
-      running(false)
+      running(false),
+      enemy(550.0f, 275.0f)
 {
 }
 
@@ -90,6 +91,76 @@ void Game::processInput()
 void Game::update(float deltaTime)
 {
     player.update(deltaTime);
+
+    const bool* keyboard = SDL_GetKeyboardState(nullptr);
+    
+    float moveX = 0.0f;
+    float moveY = 0.0f;
+    
+    if (keyboard[SDL_SCANCODE_W]) {
+        moveY -= player.getSpeed() * deltaTime;
+        player.setFacing(Direction::Up);
+    }
+    if (keyboard[SDL_SCANCODE_S]) {
+        moveY += player.getSpeed() * deltaTime;
+        player.setFacing(Direction::Down);
+    }
+    if (keyboard[SDL_SCANCODE_A]) {
+        moveX -= player.getSpeed() * deltaTime;
+        player.setFacing(Direction::Left);
+    }
+    if (keyboard[SDL_SCANCODE_D]) {
+        moveX += player.getSpeed() * deltaTime;
+        player.setFacing(Direction::Right);
+    }
+
+    float oldX = player.getX();
+
+    player.moveX(moveX);
+
+    SDL_FRect playerBounds = player.getBounds();
+    SDL_FRect enemyBounds = enemy.getBounds();
+
+    if (SDL_HasRectIntersectionFloat(&playerBounds, &enemyBounds))
+    {
+        player.setPosition(oldX, player.getY());
+    }
+
+    float oldY = player.getY();
+
+    player.moveY(moveY);
+
+    playerBounds = player.getBounds();
+
+    if (SDL_HasRectIntersectionFloat(&playerBounds, &enemyBounds))
+    {
+        player.setPosition(player.getX(), oldY);
+    }
+
+    enemy.setHit(false);
+
+    if (player.isPunchActive())
+    {
+        SDL_FRect punch = player.getPunchBounds();
+
+        if (SDL_HasRectIntersectionFloat(&punch, &enemyBounds))
+        {
+            enemy.setHit(true);
+        }
+    }
+
+    enemy.setHit(false);
+    
+    if (enemy.isAlive() && player.isPunchActive() && !player.hasPunchHit()) {
+        SDL_FRect punch = player.getPunchBounds();
+        SDL_FRect enemyBounds = enemy.getBounds();
+
+    if (SDL_HasRectIntersectionFloat(&punch, &enemyBounds)) {
+        enemy.setHit(true);
+        enemy.takeDamage(10);
+        player.markPunchHit();
+    }
+}
 }
 
 void Game::render()
@@ -99,6 +170,8 @@ void Game::render()
 
     player.render(renderer);
     player.renderPunch(renderer);
+    enemy.render(renderer);
 
     SDL_RenderPresent(renderer);
 }
+

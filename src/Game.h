@@ -2,6 +2,7 @@
 
 #include <SDL3/SDL.h>
 #include "Player.h"
+#include "Enemy.h"
 
 class Game
 {
@@ -23,4 +24,6 @@ private:
     bool running;
 
     Player player;
+
+    Enemy enemy;
 };

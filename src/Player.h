@@ -19,6 +19,19 @@ public:
     void render(SDL_Renderer* renderer);
     void renderPunch(SDL_Renderer* renderer);
     void handleEvent(const SDL_Event& event);
+    bool isPunchActive() const;
+    SDL_FRect getPunchBounds() const;
+    SDL_FRect getBounds() const;
+    float getX() const;
+    float getY() const;
+    void setPosition(float newX, float newY);
+    void moveX(float amount);
+    void moveY(float amount);
+    float getSpeed() const;
+    void setFacing(Direction newFacing);
+    bool punchHasHit;
+    bool hasPunchHit() const;
+    void markPunchHit();
 
 private:
     float x;
@@ -27,5 +40,5 @@ private:
     Direction facing;
     bool isPunching;
     float punchTimer;
-    const float punchDuration = 0.25f;
+    const float punchDuration = 0.15f;
 };

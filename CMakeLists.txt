@@ -19,6 +19,7 @@ add_executable(DungeonClearer
     src/main.cpp
     src/Game.cpp
     src/Player.cpp
+    src/Enemy.cpp
 )
 
 target_link_libraries(DungeonClearer PRIVATE SDL3::SDL3)
