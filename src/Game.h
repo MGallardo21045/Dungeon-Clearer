@@ -4,8 +4,7 @@
 #include "Player.h"
 #include "Enemy.h"
 
-class Game
-{
+class Game {
 public:
     Game();
     ~Game();

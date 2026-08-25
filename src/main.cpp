@@ -3,12 +3,10 @@
 
 #include "Game.h"
 
-int main(int argc, char* argv[])
-{
+int main(int argc, char* argv[]) {
     Game game;
 
-    if (!game.initialize())
-    {
+    if (!game.initialize()) {
         return 1;
     }
 

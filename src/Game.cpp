@@ -1,4 +1,5 @@
 #include "Game.h"
+#include <cmath>
 
 Game::Game()
     : window(nullptr),
@@ -8,25 +9,20 @@ Game::Game()
 {
 }
 
-Game::~Game()
-{
-    if (renderer)
-    {
+Game::~Game() {
+    if (renderer) {
         SDL_DestroyRenderer(renderer);
     }
 
-    if (window)
-    {
+    if (window) {
         SDL_DestroyWindow(window);
     }
 
     SDL_Quit();
 }
 
-bool Game::initialize()
-{
-    if (!SDL_Init(SDL_INIT_VIDEO))
-    {
+bool Game::initialize() {
+    if (!SDL_Init(SDL_INIT_VIDEO)) {
         SDL_Log("SDL_Init failed: %s", SDL_GetError());
         return false;
     }
@@ -38,16 +34,14 @@ bool Game::initialize()
         0
     );
 
-    if (!window)
-    {
+    if (!window) {
         SDL_Log("SDL_CreateWindow failed: %s", SDL_GetError());
         return false;
     }
 
     renderer = SDL_CreateRenderer(window, nullptr);
 
-    if (!renderer)
-    {
+    if (!renderer) {
         SDL_Log("SDL_CreateRenderer failed: %s", SDL_GetError());
         return false;
     }
@@ -56,12 +50,10 @@ bool Game::initialize()
     return true;
 }
 
-void Game::run()
-{
+void Game::run() {
     Uint64 previousTime = SDL_GetTicks();
 
-    while (running)
-    {
+    while (running) {
         Uint64 currentTime = SDL_GetTicks();
 
         float deltaTime =
@@ -75,8 +67,7 @@ void Game::run()
     }
 }
 
-void Game::processInput()
-{
+void Game::processInput() {
     SDL_Event event;
 
     while (SDL_PollEvent(&event)) {
@@ -88,15 +79,13 @@ void Game::processInput()
     }
 }
 
-void Game::update(float deltaTime)
-{
+void Game::update(float deltaTime) {
     player.update(deltaTime);
-
     const bool* keyboard = SDL_GetKeyboardState(nullptr);
-    
+
     float moveX = 0.0f;
     float moveY = 0.0f;
-    
+
     if (keyboard[SDL_SCANCODE_W]) {
         moveY -= player.getSpeed() * deltaTime;
         player.setFacing(Direction::Up);
@@ -121,9 +110,9 @@ void Game::update(float deltaTime)
     SDL_FRect playerBounds = player.getBounds();
     SDL_FRect enemyBounds = enemy.getBounds();
 
-    if (SDL_HasRectIntersectionFloat(&playerBounds, &enemyBounds))
-    {
-        player.setPosition(oldX, player.getY());
+    if (enemy.isAlive() &&
+        SDL_HasRectIntersectionFloat(&playerBounds, &enemyBounds)) {
+            player.setPosition(oldX, player.getY());
     }
 
     float oldY = player.getY();
@@ -132,39 +121,82 @@ void Game::update(float deltaTime)
 
     playerBounds = player.getBounds();
 
-    if (SDL_HasRectIntersectionFloat(&playerBounds, &enemyBounds))
-    {
-        player.setPosition(player.getX(), oldY);
+    if (enemy.isAlive() &&
+        SDL_HasRectIntersectionFloat(&playerBounds, &enemyBounds)) {
+            player.setPosition(player.getX(), oldY);
     }
 
     enemy.setHit(false);
 
-    if (player.isPunchActive())
-    {
-        SDL_FRect punch = player.getPunchBounds();
+    if (enemy.isAlive() &&
+        player.isPunchActive() &&
+        !player.hasPunchHit()) {
+            SDL_FRect punch = player.getPunchBounds();
+            enemyBounds = enemy.getBounds();
 
-        if (SDL_HasRectIntersectionFloat(&punch, &enemyBounds))
-        {
-            enemy.setHit(true);
+            if (SDL_HasRectIntersectionFloat(&punch, &enemyBounds)) {
+                enemy.setHit(true);
+                enemy.takeDamage(10);
+                player.markPunchHit();
+            } 
+        }
+
+    if (enemy.isAlive()) {
+        float directionX = player.getX() - enemy.getX();
+        float directionY = player.getY() - enemy.getY();
+
+        float length = std::sqrt(
+            directionX * directionX +
+            directionY * directionY
+        );
+
+        float enemyMoveX = 0.0f;
+        float enemyMoveY = 0.0f;
+
+        if (length > 0.0f) {
+            directionX /= length;
+            directionY /= length;
+
+            enemyMoveX = directionX * enemy.getSpeed() * deltaTime;
+
+            enemyMoveY = directionY * enemy.getSpeed() * deltaTime;
+        }
+
+        playerBounds = player.getBounds();
+
+        float oldEnemyX = enemy.getX();
+
+        enemy.moveX(enemyMoveX);
+
+        enemyBounds = enemy.getBounds();
+
+        if (SDL_HasRectIntersectionFloat(&enemyBounds, &playerBounds)) {
+            player.takeDamage(10);
+
+            enemy.setPosition(
+                oldEnemyX,
+                enemy.getY()
+            );
+        }
+
+        float oldEnemyY = enemy.getY();
+
+        enemy.moveY(enemyMoveY);
+
+        enemyBounds = enemy.getBounds();
+
+        if (SDL_HasRectIntersectionFloat(&enemyBounds, &playerBounds)) {
+            player.takeDamage(10);
+
+            enemy.setPosition(
+                enemy.getX(),
+                oldEnemyY
+            );
         }
     }
-
-    enemy.setHit(false);
-    
-    if (enemy.isAlive() && player.isPunchActive() && !player.hasPunchHit()) {
-        SDL_FRect punch = player.getPunchBounds();
-        SDL_FRect enemyBounds = enemy.getBounds();
-
-    if (SDL_HasRectIntersectionFloat(&punch, &enemyBounds)) {
-        enemy.setHit(true);
-        enemy.takeDamage(10);
-        player.markPunchHit();
-    }
-}
 }
 
-void Game::render()
-{
+void Game::render() {
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
     SDL_RenderClear(renderer);
 

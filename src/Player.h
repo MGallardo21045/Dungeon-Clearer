@@ -2,16 +2,14 @@
 
 #include <SDL3/SDL.h>
 
-enum class Direction
-{
+enum class Direction {
     Up,
     Down,
     Left,
     Right
 };
 
-class Player
-{
+class Player {
 public:
     Player();
 
@@ -32,6 +30,9 @@ public:
     bool punchHasHit;
     bool hasPunchHit() const;
     void markPunchHit();
+    void takeDamage(int amount);
+    bool isAlive() const;
+    int getHealth() const;
 
 private:
     float x;
@@ -41,4 +42,7 @@ private:
     bool isPunching;
     float punchTimer;
     const float punchDuration = 0.15f;
+    int health;
+    float invulnerabilityTimer;
+    const float invulnerabilityDuration = 1.0f;
 };
