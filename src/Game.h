@@ -3,6 +3,7 @@
 #include <SDL3/SDL.h>
 #include "Player.h"
 #include "Enemy.h"
+#include <vector>
 
 class Game {
 public:
@@ -24,5 +25,5 @@ private:
 
     Player player;
 
-    Enemy enemy;
+    std::vector<Enemy> enemies;
 };
