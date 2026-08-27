@@ -272,7 +272,13 @@ void Game::update(float deltaTime) {
                 &punchBounds,
                 &enemyBounds)) {
                     enemy.setHit(true);
-                    enemy.takeDamage(10);
+                    int damage = 10;
+
+                    if (player.getComboStep() == 3) {
+                        damage = 15;
+                    }
+                    
+                    enemy.takeDamage(damage);
                     
                     player.markPunchHit();
                     

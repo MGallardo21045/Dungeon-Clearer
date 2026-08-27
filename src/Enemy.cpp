@@ -6,7 +6,7 @@ Enemy::Enemy(float startX, float startY)
       width(50.0f),
       height(50.0f),
       wasHit(false),
-      health(30),
+      health(50),
       speed(100.0f)
 {
 }

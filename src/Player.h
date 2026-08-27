@@ -33,6 +33,7 @@ public:
     void takeDamage(int amount);
     bool isAlive() const;
     int getHealth() const;
+    int getComboStep() const;
 
 private:
     float x;
@@ -45,4 +46,8 @@ private:
     int health;
     float invulnerabilityTimer;
     const float invulnerabilityDuration = 1.0f;
+    int comboStep;
+    float comboTimer;
+    const float comboWindow = 0.5f;
+    bool attackKeyHeld;
 };

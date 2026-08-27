@@ -9,7 +9,10 @@ Player::Player()
       punchTimer(0.0f),
       punchHasHit(false),
       health(100),
-      invulnerabilityTimer(0.0f)
+      invulnerabilityTimer(0.0f),
+      comboStep(0),
+      comboTimer(0.0f),
+      attackKeyHeld(false)
 {
 }
 
@@ -27,6 +30,13 @@ void Player::update(float deltaTime) {
 
         if (invulnerabilityTimer < 0.0f) {
             invulnerabilityTimer = 0.0f;
+        }
+    }
+    if (comboTimer > 0.0f) {
+        comboTimer -= deltaTime;
+        if (comboTimer <= 0.0f) {
+            comboTimer = 0.0f;
+            comboStep = 0;
         }
     }
 }
@@ -90,16 +100,37 @@ void Player::renderPunch(SDL_Renderer* renderer) {
 }
 
 void Player::handleEvent(const SDL_Event& event) {
-    if (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat) {
-        if (event.key.scancode == SDL_SCANCODE_SPACE && !isPunching) {
+    if (event.type == SDL_EVENT_KEY_DOWN) {
+        if (event.key.scancode == SDL_SCANCODE_SPACE &&
+        !attackKeyHeld &&
+        !isPunching) {
+            attackKeyHeld = true;
+            comboStep++;
+            
+            if (comboStep > 3) {
+                comboStep = 1;
+            }
+
             isPunching = true;
-            punchTimer = punchDuration;
+            punchHasHit = false;
+
+            if (comboStep == 3) {
+                punchTimer = 0.10f;
+            }
+            else {
+                punchTimer = 0.15f;
+            }
+
+            comboTimer = comboWindow;
+
+            SDL_Log("Combo step: %d", comboStep);
         }
     }
-    if (event.key.scancode == SDL_SCANCODE_SPACE && !isPunching) {
-        isPunching = true;
-        punchTimer = punchDuration;
-        punchHasHit = false;
+
+    if (event.type == SDL_EVENT_KEY_UP) {
+        if (event.key.scancode == SDL_SCANCODE_SPACE) {
+            attackKeyHeld = false;
+        }
     }
 }
 
@@ -194,4 +225,8 @@ bool Player::isAlive() const {
 
 int Player::getHealth() const {
     return health;
+}
+
+int Player::getComboStep() const {
+    return comboStep;
 }
