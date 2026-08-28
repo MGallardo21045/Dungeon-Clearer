@@ -34,6 +34,7 @@ public:
     bool isAlive() const;
     int getHealth() const;
     int getComboStep() const;
+    Direction getFacing() const;
 
 private:
     float x;

@@ -75,25 +75,7 @@ void Player::renderPunch(SDL_Renderer* renderer) {
         return;
     }
 
-    SDL_FRect punchRect;
-
-    switch (facing) {
-        case Direction::Up:
-            punchRect = { x + 10.0f, y - 30.0f, 30.0f, 30.0f };
-            break;
-
-        case Direction::Down:
-            punchRect = { x + 10.0f, y + 50.0f, 30.0f, 30.0f };
-            break;
-
-        case Direction::Left:
-            punchRect = { x - 30.0f, y + 10.0f, 30.0f, 30.0f };
-            break;
-
-        case Direction::Right:
-            punchRect = { x + 50.0f, y + 10.0f, 30.0f, 30.0f };
-            break;
-    }
+    SDL_FRect punchRect = getPunchBounds();
 
     SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
     SDL_RenderFillRect(renderer, &punchRect);
@@ -139,18 +121,55 @@ bool Player::isPunchActive() const {
 }
 
 SDL_FRect Player::getPunchBounds() const {
+    float size = 30.0f;
+
+    if (comboStep == 3) {
+        size = 40.0f;
+    }
+
+    float centerOffset = (50.0f - size) / 2.0f;
+
+    float handOffset = 0.0f;
+
+    if (comboStep == 1) {
+        handOffset = 5.0f;
+    }
+    else if (comboStep == 2) {
+        handOffset = -5.0f;
+    }
+
     switch (facing) {
         case Direction::Up:
-            return { x + 10.0f, y - 30.0f, 30.0f, 30.0f };
+            return {
+                x + centerOffset + handOffset,
+                y - size,
+                size,
+                size
+            };
 
         case Direction::Down:
-            return { x + 10.0f, y + 50.0f, 30.0f, 30.0f };
+            return {
+                x + centerOffset - handOffset,
+                y + 50.0f,
+                size,
+                size
+            };
 
         case Direction::Left:
-            return { x - 30.0f, y + 10.0f, 30.0f, 30.0f };
+            return {
+                x - size,
+                y + centerOffset - handOffset,
+                size,
+                size
+            };
 
         case Direction::Right:
-            return { x + 50.0f, y + 10.0f, 30.0f, 30.0f };
+            return {
+                x + 50.0f,
+                y + centerOffset + handOffset,
+                size,
+                size
+            };
     }
 
     return { 0, 0, 0, 0 };
@@ -229,4 +248,8 @@ int Player::getHealth() const {
 
 int Player::getComboStep() const {
     return comboStep;
+}
+
+Direction Player::getFacing() const {
+    return facing;
 }

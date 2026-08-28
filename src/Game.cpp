@@ -279,6 +279,24 @@ void Game::update(float deltaTime) {
                     }
                     
                     enemy.takeDamage(damage);
+
+                    if (player.getComboStep() == 3) {
+                        float knockbackDistance = 20.0f;
+                        switch (player.getFacing()) {
+                            case Direction::Up:
+                            enemy.moveY(-knockbackDistance);
+                            break;
+                            case Direction::Down:
+                            enemy.moveY(knockbackDistance);
+                            break;
+                            case Direction::Left:
+                            enemy.moveX(-knockbackDistance);
+                            break;
+                            case Direction::Right:
+                            enemy.moveX(knockbackDistance);
+                            break;
+                        }
+                    }
                     
                     player.markPunchHit();
                     
