@@ -304,6 +304,49 @@ void Game::update(float deltaTime) {
             }
         }
     }
+
+    if (player.isSwordSwingActive()) {    
+        SDL_FRect swordBounds = player.getSwordBounds();
+        
+        for (Enemy& enemy : enemies) {
+            if (!enemy.isAlive()) {
+                continue;
+            }
+
+            SDL_FRect enemyBounds = enemy.getBounds();
+
+            if (SDL_HasRectIntersectionFloat(&swordBounds, &enemyBounds)) {
+                if (enemy.getLastSwordAttackHit() != player.getSwordAttackId()) {
+                    int swordDamage = 20;
+                    switch (player.getSwordComboStep()) {
+                        case 1:
+                        swordDamage = 20;
+                        break;
+
+                        case 2:
+                        swordDamage = 20;
+                        break;
+
+                        case 3:
+                        swordDamage = 15;
+                        break;
+
+                        case 4:
+                        swordDamage = 30;
+                        break;
+
+                        default:
+                        swordDamage = 20;
+                        break;
+                    }
+                    
+                    enemy.takeDamage(swordDamage);
+                    enemy.setLastSwordAttackHit(
+                    player.getSwordAttackId());
+                }            
+            }
+        }
+    }
 }
 
 void Game::render() {
@@ -312,6 +355,7 @@ void Game::render() {
 
     player.render(renderer);
     player.renderPunch(renderer);
+    player.renderSword(renderer);
 
     for (Enemy& enemy : enemies) {
         enemy.render(renderer);

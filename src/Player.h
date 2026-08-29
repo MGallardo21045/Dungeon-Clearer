@@ -9,6 +9,16 @@ enum class Direction {
     Right
 };
 
+enum class PlayerClass
+{
+    None,
+    Fighter,
+    SwordUser,
+    Blaster,
+    Cannon,
+    Mage
+};
+
 class Player {
 public:
     Player();
@@ -35,7 +45,14 @@ public:
     int getHealth() const;
     int getComboStep() const;
     Direction getFacing() const;
-
+    PlayerClass getPlayerClass() const;
+    void setPlayerClass(PlayerClass newClass);
+    bool isSwordSwingActive() const;
+    SDL_FRect getSwordBounds() const;
+    void renderSword(SDL_Renderer* renderer);
+    int getSwordAttackId() const;
+    int getSwordComboStep() const;
+    
 private:
     float x;
     float y;
@@ -43,7 +60,16 @@ private:
     Direction facing;
     bool isPunching;
     float punchTimer;
+    bool isSwinging;
+    float swingTimer;
+    const float swingDuration = 0.30f;
     const float punchDuration = 0.15f;
+    int swordComboStep;
+    float swordComboTimer;
+    const float swordComboWindow = 0.7f;
+    bool swordOnCooldown;
+    float swordCooldownTimer;
+    const float swordCooldownDuration = 0.5f;
     int health;
     float invulnerabilityTimer;
     const float invulnerabilityDuration = 1.0f;
@@ -51,4 +77,6 @@ private:
     float comboTimer;
     const float comboWindow = 0.5f;
     bool attackKeyHeld;
+    PlayerClass playerClass;
+    int swordAttackId;
 };

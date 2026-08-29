@@ -7,7 +7,8 @@ Enemy::Enemy(float startX, float startY)
       height(50.0f),
       wasHit(false),
       health(50),
-      speed(100.0f)
+      speed(100.0f),
+      lastSwordAttackHit(-1)
 {
 }
 
@@ -83,4 +84,12 @@ float Enemy::getSpeed() const {
 void Enemy::setPosition(float newX, float newY) {
     x = newX;
     y = newY;
+}
+
+int Enemy::getLastSwordAttackHit() const {
+    return lastSwordAttackHit;
+}
+
+void Enemy::setLastSwordAttackHit(int attackId) {
+    lastSwordAttackHit = attackId;
 }

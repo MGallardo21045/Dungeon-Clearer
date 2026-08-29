@@ -17,6 +17,8 @@ public:
     float getY() const;
     float getSpeed() const;
     void setPosition(float newX, float newY);
+    int getLastSwordAttackHit() const;
+    void setLastSwordAttackHit(int attackId);
 
 private:
     float x;
@@ -26,4 +28,5 @@ private:
     bool wasHit;
     int health;
     float speed;
+    int lastSwordAttackHit;
 };

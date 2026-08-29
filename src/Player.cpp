@@ -12,7 +12,15 @@ Player::Player()
       invulnerabilityTimer(0.0f),
       comboStep(0),
       comboTimer(0.0f),
-      attackKeyHeld(false)
+      attackKeyHeld(false),
+      playerClass(PlayerClass::None),
+      isSwinging(false),
+      swingTimer(0.0f),
+      swordComboStep(0),
+      swordComboTimer(0.0f),
+      swordOnCooldown(false),
+      swordCooldownTimer(0.0f),
+      swordAttackId(0)
 {
 }
 
@@ -37,6 +45,32 @@ void Player::update(float deltaTime) {
         if (comboTimer <= 0.0f) {
             comboTimer = 0.0f;
             comboStep = 0;
+        }
+    }
+    if (isSwinging) {
+        swingTimer -= deltaTime;
+
+        if (swingTimer <= 0.0f) {
+            isSwinging = false;        
+            swingTimer = 0.0f;
+        }
+    }
+    if (swordComboTimer > 0.0f) {
+        swordComboTimer -= deltaTime;
+
+        if (swordComboTimer <= 0.0f) {
+            swordComboTimer = 0.0f;
+            swordComboStep = 0;
+        }
+    }
+    if (swordOnCooldown) {
+        swordCooldownTimer -= deltaTime;
+
+        if (swordCooldownTimer <= 0.0f) {
+            swordCooldownTimer = 0.0f;
+            swordOnCooldown = false;
+
+            SDL_Log("Sword ready!");
         }
     }
 }
@@ -83,29 +117,77 @@ void Player::renderPunch(SDL_Renderer* renderer) {
 
 void Player::handleEvent(const SDL_Event& event) {
     if (event.type == SDL_EVENT_KEY_DOWN) {
+        if (event.key.scancode == SDL_SCANCODE_1) {
+            setPlayerClass(PlayerClass::Fighter);
+            SDL_Log("Class selected: Fighter");
+        }
+        else if (event.key.scancode == SDL_SCANCODE_2) {
+            setPlayerClass(PlayerClass::SwordUser);
+            SDL_Log("Class selected: Sword User");
+        }
+        else if (event.key.scancode == SDL_SCANCODE_3) {
+            setPlayerClass(PlayerClass::Blaster);
+            SDL_Log("Class selected: Blaster");
+        }
+        else if (event.key.scancode == SDL_SCANCODE_4) {
+            setPlayerClass(PlayerClass::Cannon);
+            SDL_Log("Class selected: Cannon");
+        }
+        else if (event.key.scancode == SDL_SCANCODE_5) {
+            setPlayerClass(PlayerClass::Mage);
+            SDL_Log("Class selected: Mage");
+        }
+        
         if (event.key.scancode == SDL_SCANCODE_SPACE &&
-        !attackKeyHeld &&
-        !isPunching) {
+            !attackKeyHeld) {
+
             attackKeyHeld = true;
-            comboStep++;
-            
-            if (comboStep > 3) {
-                comboStep = 1;
+
+            if (playerClass == PlayerClass::Fighter &&
+            !isPunching) {
+                comboStep++;
+
+                if (comboStep > 3) {
+                    comboStep = 1;
+                }
+
+                isPunching = true;
+                punchHasHit = false;
+
+                if (comboStep == 3) {
+                    punchTimer = 0.10f;
+                }
+                else {
+                    punchTimer = 0.15f;
+                }
+
+                comboTimer = comboWindow;
+
+                SDL_Log("Combo step: %d", comboStep);
             }
+            else if (playerClass == PlayerClass::SwordUser &&
+            !isSwinging &&
+            !swordOnCooldown) {                
+                swordComboStep++;
 
-            isPunching = true;
-            punchHasHit = false;
+                if (swordComboStep > 4) {
+                    swordComboStep = 1;
+                }
 
-            if (comboStep == 3) {
-                punchTimer = 0.10f;
+                swordAttackId++;
+
+                isSwinging = true;
+                swingTimer = swingDuration;
+
+                swordComboTimer = swordComboWindow;
+
+                SDL_Log("Sword combo: %d", swordComboStep);
+
+                if (swordComboStep == 4) {
+                    swordOnCooldown = true;
+                    swordCooldownTimer = swordCooldownDuration;
+                }
             }
-            else {
-                punchTimer = 0.15f;
-            }
-
-            comboTimer = comboWindow;
-
-            SDL_Log("Combo step: %d", comboStep);
         }
     }
 
@@ -169,6 +251,104 @@ SDL_FRect Player::getPunchBounds() const {
                 y + centerOffset + handOffset,
                 size,
                 size
+            };
+    }
+
+    return { 0, 0, 0, 0 };
+}
+
+SDL_FRect Player::getSwordBounds() const {
+    float width = 70.0f;
+    float depth = 35.0f;
+
+    float swingOffset = 0.0f;
+
+    if (swordComboStep == 1) {
+        swingOffset = 10.0f;
+    }
+    else if (swordComboStep == 2) {
+        swingOffset = -10.0f;
+    }
+    
+    if (swordComboStep == 3) {
+        return {
+            x - 25.0f,        
+            y - 25.0f,    
+            100.0f,
+            100.0f
+        };
+    }
+
+    if (swordComboStep == 4) {
+        float finisherWidth = 90.0f;
+        float finisherDepth = 50.0f;
+        
+        switch (facing) {
+            case Direction::Up:
+            return {                
+                x - 20.0f,
+                y - finisherDepth,
+                finisherWidth,
+                finisherDepth
+            };
+            
+            case Direction::Down:
+            return {
+                x - 20.0f,
+                y + 50.0f,
+                finisherWidth,
+                finisherDepth
+            };
+
+            case Direction::Left:            
+            return {
+                x - finisherDepth,
+                y - 20.0f,
+                finisherDepth,
+                finisherWidth
+            };
+
+            case Direction::Right:            
+            return {
+                x + 50.0f,
+                y - 20.0f,
+                finisherDepth,
+                finisherWidth
+            };        
+        }
+    }
+
+    switch (facing) {
+        case Direction::Up:
+            return {
+                x - 10.0f + swingOffset,
+                y - depth,
+                width,
+                depth
+            };
+
+        case Direction::Down:
+            return {
+                x - 10.0f - swingOffset,
+                y + 50.0f,
+                width,
+                depth
+            };
+
+        case Direction::Left:
+            return {
+                x - depth,
+                y - 10.0f - swingOffset,
+                depth,
+                width
+            };
+
+        case Direction::Right:
+            return {
+                x + 50.0f,
+                y - 10.0f + swingOffset,
+                depth,
+                width
             };
     }
 
@@ -252,4 +432,35 @@ int Player::getComboStep() const {
 
 Direction Player::getFacing() const {
     return facing;
+}
+
+PlayerClass Player::getPlayerClass() const {
+    return playerClass;
+}
+
+void Player::setPlayerClass(PlayerClass newClass) {
+    playerClass = newClass;
+}
+
+bool Player::isSwordSwingActive() const {
+    return isSwinging;
+}
+
+void Player::renderSword(SDL_Renderer* renderer) {
+    if (!isSwinging) {
+        return;
+    }
+
+    SDL_FRect swordRect = getSwordBounds();
+
+    SDL_SetRenderDrawColor(renderer, 200, 200, 200, 255);
+    SDL_RenderFillRect(renderer, &swordRect);
+}
+
+int Player::getSwordAttackId() const {
+    return swordAttackId;
+}
+
+int Player::getSwordComboStep() const {
+    return swordComboStep;
 }
