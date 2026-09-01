@@ -52,6 +52,9 @@ public:
     void renderSword(SDL_Renderer* renderer);
     int getSwordAttackId() const;
     int getSwordComboStep() const;
+    bool getWantsToFire() const;
+    void clearWantsToFire();
+    
     
 private:
     float x;
@@ -79,4 +82,8 @@ private:
     bool attackKeyHeld;
     PlayerClass playerClass;
     int swordAttackId;
+    float blasterFireTimer;
+    const float blasterFireRate = 0.15f;
+    bool wantsToFire;
+    bool blasterFireHeld;
 };

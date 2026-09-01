@@ -347,6 +347,78 @@ void Game::update(float deltaTime) {
             }
         }
     }
+
+    if (player.getWantsToFire()) {
+        float projectileSpeed = 500.0f;
+
+        float velocityX = 0.0f;
+        float velocityY = 0.0f;
+
+        switch (player.getFacing()) {
+            case Direction::Up:
+            velocityY = -projectileSpeed;
+            break;
+
+            case Direction::Down:
+            velocityY = projectileSpeed;
+            break;
+
+            case Direction::Left:
+            velocityX = -projectileSpeed;
+            break;
+
+            case Direction::Right:
+            velocityX = projectileSpeed;
+            break;
+        }
+
+        projectiles.emplace_back(
+            player.getX() + 20.0f,
+            player.getY() + 20.0f,
+            velocityX,
+            velocityY
+        );
+
+        player.clearWantsToFire();
+    }
+    
+    auto projectileIt = projectiles.begin();
+
+    while (projectileIt != projectiles.end()) {
+        projectileIt->update(deltaTime);
+
+        bool projectileDestroyed = false;
+
+        SDL_FRect projectileBounds = projectileIt->getBounds();
+
+        for (Enemy& enemy : enemies) {
+            if (!enemy.isAlive()) {
+                continue;
+            }
+
+            SDL_FRect enemyBounds = enemy.getBounds();
+
+            if (SDL_HasRectIntersectionFloat(
+            &projectileBounds,
+            &enemyBounds)) {      
+                enemy.takeDamage(5);          
+                SDL_Log("Blaster hit an enemy!");
+                projectileIt = projectiles.erase(projectileIt);
+                projectileDestroyed = true;
+
+                break;
+            }
+        }
+
+        if (!projectileDestroyed && projectileIt->isOffScreen()) {
+            projectileIt = projectiles.erase(projectileIt);
+            projectileDestroyed = true;
+        }
+
+        if (!projectileDestroyed) {
+            ++projectileIt;
+        }
+    }
 }
 
 void Game::render() {
@@ -359,6 +431,10 @@ void Game::render() {
 
     for (Enemy& enemy : enemies) {
         enemy.render(renderer);
+    }
+
+    for (Projectile& projectile : projectiles) {
+        projectile.render(renderer);
     }
 
     SDL_RenderPresent(renderer);

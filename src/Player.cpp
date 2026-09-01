@@ -20,7 +20,10 @@ Player::Player()
       swordComboTimer(0.0f),
       swordOnCooldown(false),
       swordCooldownTimer(0.0f),
-      swordAttackId(0)
+      swordAttackId(0),
+      wantsToFire(false),
+      blasterFireTimer(0.0f),
+      blasterFireHeld(false)
 {
 }
 
@@ -72,6 +75,19 @@ void Player::update(float deltaTime) {
 
             SDL_Log("Sword ready!");
         }
+    }
+    if (blasterFireTimer > 0.0f) {
+        blasterFireTimer -= deltaTime;
+
+        if (blasterFireTimer < 0.0f) {
+            blasterFireTimer = 0.0f;
+        }
+    }     
+    if (playerClass == PlayerClass::Blaster &&     
+    blasterFireHeld &&
+    blasterFireTimer <= 0.0f) {
+        wantsToFire = true;
+        blasterFireTimer = blasterFireRate;
     }
 }
 
@@ -137,14 +153,15 @@ void Player::handleEvent(const SDL_Event& event) {
             setPlayerClass(PlayerClass::Mage);
             SDL_Log("Class selected: Mage");
         }
-        
+
         if (event.key.scancode == SDL_SCANCODE_SPACE &&
             !attackKeyHeld) {
 
             attackKeyHeld = true;
 
             if (playerClass == PlayerClass::Fighter &&
-            !isPunching) {
+                !isPunching) {
+
                 comboStep++;
 
                 if (comboStep > 3) {
@@ -166,8 +183,9 @@ void Player::handleEvent(const SDL_Event& event) {
                 SDL_Log("Combo step: %d", comboStep);
             }
             else if (playerClass == PlayerClass::SwordUser &&
-            !isSwinging &&
-            !swordOnCooldown) {                
+                     !isSwinging &&
+                     !swordOnCooldown) {
+
                 swordComboStep++;
 
                 if (swordComboStep > 4) {
@@ -178,7 +196,6 @@ void Player::handleEvent(const SDL_Event& event) {
 
                 isSwinging = true;
                 swingTimer = swingDuration;
-
                 swordComboTimer = swordComboWindow;
 
                 SDL_Log("Sword combo: %d", swordComboStep);
@@ -189,11 +206,17 @@ void Player::handleEvent(const SDL_Event& event) {
                 }
             }
         }
+
+        if (playerClass == PlayerClass::Blaster &&
+            event.key.scancode == SDL_SCANCODE_SPACE) {
+            blasterFireHeld = true;
+        }
     }
 
     if (event.type == SDL_EVENT_KEY_UP) {
         if (event.key.scancode == SDL_SCANCODE_SPACE) {
             attackKeyHeld = false;
+            blasterFireHeld = false;
         }
     }
 }
@@ -463,4 +486,12 @@ int Player::getSwordAttackId() const {
 
 int Player::getSwordComboStep() const {
     return swordComboStep;
+}
+
+bool Player::getWantsToFire() const {
+    return wantsToFire;
+}
+
+void Player::clearWantsToFire() {
+    wantsToFire = false;
 }
