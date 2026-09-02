@@ -54,7 +54,9 @@ public:
     int getSwordComboStep() const;
     bool getWantsToFire() const;
     void clearWantsToFire();
-    
+    bool getWantsToFireCannon() const;
+    void clearWantsToFireCannon();
+    void renderCannonCharge(SDL_Renderer* renderer);
     
 private:
     float x;
@@ -86,4 +88,10 @@ private:
     const float blasterFireRate = 0.15f;
     bool wantsToFire;
     bool blasterFireHeld;
+    bool wantsToFireCannon;
+    float cannonFireTimer;
+    const float cannonFireCooldown = 1.0f;
+    bool cannonCharging;
+    float cannonChargeTimer;
+    const float cannonChargeDuration = 0.5f;
 };

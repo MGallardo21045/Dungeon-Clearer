@@ -23,7 +23,11 @@ Player::Player()
       swordAttackId(0),
       wantsToFire(false),
       blasterFireTimer(0.0f),
-      blasterFireHeld(false)
+      blasterFireHeld(false),
+      wantsToFireCannon(false),
+      cannonFireTimer(0.0f),
+      cannonCharging(false),
+      cannonChargeTimer(0.0f)
 {
 }
 
@@ -88,6 +92,24 @@ void Player::update(float deltaTime) {
     blasterFireTimer <= 0.0f) {
         wantsToFire = true;
         blasterFireTimer = blasterFireRate;
+    }
+    if (cannonFireTimer > 0.0f) {
+        cannonFireTimer -= deltaTime;
+
+        if (cannonFireTimer < 0.0f) {
+            cannonFireTimer = 0.0f;
+        }
+    }
+    if (cannonCharging) {
+        cannonChargeTimer -= deltaTime;
+
+        if (cannonChargeTimer <= 0.0f) {
+            cannonChargeTimer = 0.0f;
+            cannonCharging = false;
+
+            wantsToFireCannon = true;
+            cannonFireTimer = cannonFireCooldown;
+        }
     }
 }
 
@@ -183,9 +205,8 @@ void Player::handleEvent(const SDL_Event& event) {
                 SDL_Log("Combo step: %d", comboStep);
             }
             else if (playerClass == PlayerClass::SwordUser &&
-                     !isSwinging &&
-                     !swordOnCooldown) {
-
+            !isSwinging &&
+            !swordOnCooldown) {
                 swordComboStep++;
 
                 if (swordComboStep > 4) {
@@ -204,6 +225,12 @@ void Player::handleEvent(const SDL_Event& event) {
                     swordOnCooldown = true;
                     swordCooldownTimer = swordCooldownDuration;
                 }
+            }
+            else if (playerClass == PlayerClass::Cannon &&
+            cannonFireTimer <= 0.0f &&
+            !cannonCharging) {
+                cannonCharging = true;
+                cannonChargeTimer = cannonChargeDuration;
             }
         }
 
@@ -494,4 +521,62 @@ bool Player::getWantsToFire() const {
 
 void Player::clearWantsToFire() {
     wantsToFire = false;
+}
+
+bool Player::getWantsToFireCannon() const {
+    return wantsToFireCannon;
+}
+
+void Player::clearWantsToFireCannon() {
+    wantsToFireCannon = false;
+}
+
+void Player::renderCannonCharge(SDL_Renderer* renderer) {
+    if (!cannonCharging) {
+        return;
+    }
+
+    float chargeProgress =
+        1.0f - (cannonChargeTimer / cannonChargeDuration);
+
+    float minSize = 10.0f;
+    float maxSize = 35.0f;
+
+    float currentSize =
+        minSize + (maxSize - minSize) * chargeProgress;
+
+    float chargeX = x;
+    float chargeY = y;
+
+    switch (facing) {
+        case Direction::Up:
+            chargeX = x + (50.0f - currentSize) / 2.0f;
+            chargeY = y - currentSize;
+            break;
+
+        case Direction::Down:
+            chargeX = x + (50.0f - currentSize) / 2.0f;
+            chargeY = y + 50.0f;
+            break;
+
+        case Direction::Left:
+            chargeX = x - currentSize;
+            chargeY = y + (50.0f - currentSize) / 2.0f;
+            break;
+
+        case Direction::Right:
+            chargeX = x + 50.0f;
+            chargeY = y + (50.0f - currentSize) / 2.0f;
+            break;
+    }
+
+    SDL_FRect chargeRect = {
+        chargeX,
+        chargeY,
+        currentSize,
+        currentSize
+    };
+
+    SDL_SetRenderDrawColor(renderer, 0, 255, 255, 255);
+    SDL_RenderFillRect(renderer, &chargeRect);
 }

@@ -4,12 +4,20 @@ Projectile::Projectile(
     float startX,
     float startY,
     float velocityX,
-    float velocityY
+    float velocityY,
+    float projectileWidth,
+    float projectileHeight,
+    int projectileDamage,
+    bool projectileExplosive
 )
     : x(startX),
       y(startY),
       velocityX(velocityX),
-      velocityY(velocityY)
+      velocityY(velocityY),
+      width(projectileWidth),
+      height(projectileHeight),
+      damage(projectileDamage),
+      explosive(projectileExplosive)
 {
 }
 
@@ -46,4 +54,12 @@ bool Projectile::isOffScreen() const {
         y + height < 0.0f ||
         y > 600.0f
     );
+}
+
+int Projectile::getDamage() const {
+    return damage;
+}
+
+bool Projectile::isExplosive() const {
+    return explosive;
 }

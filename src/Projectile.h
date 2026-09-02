@@ -4,20 +4,34 @@
 
 class Projectile {
 public:
-    Projectile(float startX, float startY, float velocityX, float velocityY);
+    Projectile(
+        float startX,
+        float startY,
+        float velocityX,
+        float velocityY,
+        float projectileWidth,
+        float projectileHeight,
+        int projectileDamage,
+        bool projectileExplosive
+    );
 
     void update(float deltaTime);
     void render(SDL_Renderer* renderer);
+
     SDL_FRect getBounds() const;
     bool isOffScreen() const;
+
+    int getDamage() const;
+    bool isExplosive() const;
 
 private:
     float x;
     float y;
-
     float velocityX;
     float velocityY;
-    
-    float width = 10.0f;
-    float height = 10.0f;
+    float width;
+    float height;
+
+    int damage;
+    bool explosive;
 };

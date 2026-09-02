@@ -76,16 +76,16 @@ void Game::processInput() {
         if (event.type == SDL_EVENT_QUIT) {
             running = false;
         }
-        
+
         player.handleEvent(event);
     }
 }
 
 void Game::update(float deltaTime) {
     player.update(deltaTime);
-    
+
     const bool* keyboard = SDL_GetKeyboardState(nullptr);
-    
+
     float moveX = 0.0f;
     float moveY = 0.0f;
 
@@ -93,14 +93,17 @@ void Game::update(float deltaTime) {
         moveY -= player.getSpeed() * deltaTime;
         player.setFacing(Direction::Up);
     }
+
     if (keyboard[SDL_SCANCODE_S]) {
         moveY += player.getSpeed() * deltaTime;
         player.setFacing(Direction::Down);
     }
+
     if (keyboard[SDL_SCANCODE_A]) {
         moveX -= player.getSpeed() * deltaTime;
         player.setFacing(Direction::Left);
     }
+
     if (keyboard[SDL_SCANCODE_D]) {
         moveX += player.getSpeed() * deltaTime;
         player.setFacing(Direction::Right);
@@ -121,7 +124,10 @@ void Game::update(float deltaTime) {
 
         SDL_FRect enemyBounds = enemy.getBounds();
 
-        if (SDL_HasRectIntersectionFloat(&playerBounds, &enemyBounds)) {
+        if (SDL_HasRectIntersectionFloat(
+            &playerBounds,
+            &enemyBounds)) {
+
             collidedOnX = true;
             break;
         }
@@ -146,7 +152,10 @@ void Game::update(float deltaTime) {
 
         SDL_FRect enemyBounds = enemy.getBounds();
 
-        if (SDL_HasRectIntersectionFloat(&playerBounds, &enemyBounds)) {
+        if (SDL_HasRectIntersectionFloat(
+            &playerBounds,
+            &enemyBounds)) {
+
             collidedOnY = true;
             break;
         }
@@ -161,12 +170,16 @@ void Game::update(float deltaTime) {
             continue;
         }
 
-        float directionX = player.getX() - enemy.getX();
-        float directionY = player.getY() - enemy.getY();
+        float directionX =
+            player.getX() - enemy.getX();
+
+        float directionY =
+            player.getY() - enemy.getY();
 
         float length = std::sqrt(
             directionX * directionX +
-            directionY * directionY);
+            directionY * directionY
+        );
 
         float enemyMoveX = 0.0f;
         float enemyMoveY = 0.0f;
@@ -175,244 +188,484 @@ void Game::update(float deltaTime) {
             directionX /= length;
             directionY /= length;
 
-            enemyMoveX = directionX * enemy.getSpeed() * deltaTime;
+            enemyMoveX =
+                directionX *
+                enemy.getSpeed() *
+                deltaTime;
 
-            enemyMoveY = directionY * enemy.getSpeed() * deltaTime;
+            enemyMoveY =
+                directionY *
+                enemy.getSpeed() *
+                deltaTime;
         }
 
-    SDL_FRect playerBounds = player.getBounds();
-    
-    float oldEnemyX = enemy.getX();
+        SDL_FRect currentPlayerBounds =
+            player.getBounds();
 
-    enemy.moveX(enemyMoveX);
+        float oldEnemyX =
+            enemy.getX();
 
-    SDL_FRect enemyBounds = enemy.getBounds();
+        enemy.moveX(enemyMoveX);
 
-    bool collidedWithEnemyOnX = false;
+        SDL_FRect enemyBounds =
+            enemy.getBounds();
 
-    for (Enemy& otherEnemy : enemies) {
-        if (&otherEnemy == &enemy) {
-            continue;
-        }
-        if (!otherEnemy.isAlive()) {
-            continue;
-        }
+        bool collidedWithEnemyOnX =
+            false;
 
-        SDL_FRect otherBounds = otherEnemy.getBounds();
-
-        if (SDL_HasRectIntersectionFloat(
-            &enemyBounds,
-            &otherBounds)) {
-                collidedWithEnemyOnX = true;
-                break;
-            }
-        }
-        
-        bool collidedWithPlayerOnX = SDL_HasRectIntersectionFloat(&enemyBounds, &playerBounds);
-        
-        if (collidedWithPlayerOnX) {
-            player.takeDamage(10);
-        }
-        
-        if (collidedWithPlayerOnX || collidedWithEnemyOnX) {
-            enemy.setPosition(oldEnemyX, enemy.getY());
-        }
-                
-        float oldEnemyY = enemy.getY();
-    
-        enemy.moveY(enemyMoveY);
-        
-        enemyBounds = enemy.getBounds();
-        
-        bool collidedWithEnemyOnY = false;
-        
         for (Enemy& otherEnemy : enemies) {
             if (&otherEnemy == &enemy) {
                 continue;
             }
+
             if (!otherEnemy.isAlive()) {
                 continue;
             }
 
-        SDL_FRect otherBounds = otherEnemy.getBounds();
+            SDL_FRect otherBounds =
+                otherEnemy.getBounds();
 
-        if (SDL_HasRectIntersectionFloat(
-            &enemyBounds,
-            &otherBounds)) {
-                collidedWithEnemyOnY = true;
+            if (SDL_HasRectIntersectionFloat(
+                &enemyBounds,
+                &otherBounds)) {
+
+                collidedWithEnemyOnX =
+                    true;
+
                 break;
             }
         }
-        
-        bool collidedWithPlayerOnY = SDL_HasRectIntersectionFloat(&enemyBounds, &playerBounds);
-        
+
+        bool collidedWithPlayerOnX =
+            SDL_HasRectIntersectionFloat(
+                &enemyBounds,
+                &currentPlayerBounds
+            );
+
+        if (collidedWithPlayerOnX) {
+            player.takeDamage(10);
+        }
+
+        if (collidedWithPlayerOnX ||
+            collidedWithEnemyOnX) {
+
+            enemy.setPosition(
+                oldEnemyX,
+                enemy.getY()
+            );
+        }
+
+        float oldEnemyY =
+            enemy.getY();
+
+        enemy.moveY(enemyMoveY);
+
+        enemyBounds =
+            enemy.getBounds();
+
+        bool collidedWithEnemyOnY =
+            false;
+
+        for (Enemy& otherEnemy : enemies) {
+            if (&otherEnemy == &enemy) {
+                continue;
+            }
+
+            if (!otherEnemy.isAlive()) {
+                continue;
+            }
+
+            SDL_FRect otherBounds =
+                otherEnemy.getBounds();
+
+            if (SDL_HasRectIntersectionFloat(
+                &enemyBounds,
+                &otherBounds)) {
+
+                collidedWithEnemyOnY =
+                    true;
+
+                break;
+            }
+        }
+
+        bool collidedWithPlayerOnY =
+            SDL_HasRectIntersectionFloat(
+                &enemyBounds,
+                &currentPlayerBounds
+            );
+
         if (collidedWithPlayerOnY) {
             player.takeDamage(10);
         }
-        if (collidedWithPlayerOnY || collidedWithEnemyOnY) {
-            enemy.setPosition(enemy.getX(), oldEnemyY);
+
+        if (collidedWithPlayerOnY ||
+            collidedWithEnemyOnY) {
+
+            enemy.setPosition(
+                enemy.getX(),
+                oldEnemyY
+            );
         }
     }
 
     for (Enemy& enemy : enemies) {
         enemy.setHit(false);
     }
-    
-    if (player.isPunchActive() && !player.hasPunchHit()) {
-        SDL_FRect punchBounds = player.getPunchBounds();
-        
+
+   if (player.isPunchActive() &&
+        !player.hasPunchHit()) {
+
+        SDL_FRect punchBounds =
+            player.getPunchBounds();
+
         for (Enemy& enemy : enemies) {
             if (!enemy.isAlive()) {
                 continue;
             }
-            
-            SDL_FRect enemyBounds = enemy.getBounds();
-            
+
+            SDL_FRect enemyBounds =
+                enemy.getBounds();
+
             if (SDL_HasRectIntersectionFloat(
                 &punchBounds,
                 &enemyBounds)) {
-                    enemy.setHit(true);
-                    int damage = 10;
 
-                    if (player.getComboStep() == 3) {
-                        damage = 15;
-                    }
-                    
-                    enemy.takeDamage(damage);
+                enemy.setHit(true);
 
-                    if (player.getComboStep() == 3) {
-                        float knockbackDistance = 20.0f;
-                        switch (player.getFacing()) {
-                            case Direction::Up:
-                            enemy.moveY(-knockbackDistance);
+                int damage = 10;
+
+                if (player.getComboStep() == 3) {
+                    damage = 15;
+                }
+
+                enemy.takeDamage(damage);
+
+                if (player.getComboStep() == 3) {
+                    float knockbackDistance =
+                        20.0f;
+
+                    switch (player.getFacing()) {
+                        case Direction::Up:
+                            enemy.moveY(
+                                -knockbackDistance
+                            );
                             break;
-                            case Direction::Down:
-                            enemy.moveY(knockbackDistance);
+
+                        case Direction::Down:
+                            enemy.moveY(
+                                knockbackDistance
+                            );
                             break;
-                            case Direction::Left:
-                            enemy.moveX(-knockbackDistance);
+
+                        case Direction::Left:
+                            enemy.moveX(
+                                -knockbackDistance
+                            );
                             break;
-                            case Direction::Right:
-                            enemy.moveX(knockbackDistance);
+
+                        case Direction::Right:
+                            enemy.moveX(
+                                knockbackDistance
+                            );
                             break;
-                        }
                     }
-                    
-                    player.markPunchHit();
-                    
-                    break;
+                }
+
+                player.markPunchHit();
+
+                break;
             }
         }
     }
 
-    if (player.isSwordSwingActive()) {    
-        SDL_FRect swordBounds = player.getSwordBounds();
-        
+    if (player.isSwordSwingActive()) {
+        SDL_FRect swordBounds =
+            player.getSwordBounds();
+
         for (Enemy& enemy : enemies) {
             if (!enemy.isAlive()) {
                 continue;
             }
 
-            SDL_FRect enemyBounds = enemy.getBounds();
+            SDL_FRect enemyBounds =
+                enemy.getBounds();
 
-            if (SDL_HasRectIntersectionFloat(&swordBounds, &enemyBounds)) {
-                if (enemy.getLastSwordAttackHit() != player.getSwordAttackId()) {
+            if (SDL_HasRectIntersectionFloat(
+                &swordBounds,
+                &enemyBounds)) {
+
+                if (
+                    enemy.getLastSwordAttackHit() !=
+                    player.getSwordAttackId()
+                ) {
+
                     int swordDamage = 20;
-                    switch (player.getSwordComboStep()) {
+
+                    switch (
+                        player.getSwordComboStep()
+                    ) {
                         case 1:
-                        swordDamage = 20;
-                        break;
+                            swordDamage = 20;
+                            break;
 
                         case 2:
-                        swordDamage = 20;
-                        break;
+                            swordDamage = 20;
+                            break;
 
                         case 3:
-                        swordDamage = 15;
-                        break;
+                            swordDamage = 15;
+                            break;
 
                         case 4:
-                        swordDamage = 30;
-                        break;
+                            swordDamage = 30;
+                            break;
 
                         default:
-                        swordDamage = 20;
-                        break;
+                            swordDamage = 20;
+                            break;
                     }
-                    
-                    enemy.takeDamage(swordDamage);
+
+                    enemy.takeDamage(
+                        swordDamage
+                    );
+
                     enemy.setLastSwordAttackHit(
-                    player.getSwordAttackId());
-                }            
+                        player.getSwordAttackId()
+                    );
+                }
             }
         }
     }
 
     if (player.getWantsToFire()) {
-        float projectileSpeed = 500.0f;
+        float projectileSpeed =
+            500.0f;
 
         float velocityX = 0.0f;
         float velocityY = 0.0f;
 
         switch (player.getFacing()) {
             case Direction::Up:
-            velocityY = -projectileSpeed;
-            break;
+                velocityY =
+                    -projectileSpeed;
+                break;
 
             case Direction::Down:
-            velocityY = projectileSpeed;
-            break;
+                velocityY =
+                    projectileSpeed;
+                break;
 
             case Direction::Left:
-            velocityX = -projectileSpeed;
-            break;
+                velocityX =
+                    -projectileSpeed;
+                break;
 
             case Direction::Right:
-            velocityX = projectileSpeed;
-            break;
+                velocityX =
+                    projectileSpeed;
+                break;
         }
 
         projectiles.emplace_back(
             player.getX() + 20.0f,
             player.getY() + 20.0f,
             velocityX,
-            velocityY
+            velocityY,
+            10.0f,
+            10.0f,
+            5,
+            false
         );
 
         player.clearWantsToFire();
     }
-    
-    auto projectileIt = projectiles.begin();
 
-    while (projectileIt != projectiles.end()) {
-        projectileIt->update(deltaTime);
+    if (player.getWantsToFireCannon()) {
+        float projectileSpeed =
+            300.0f;
 
-        bool projectileDestroyed = false;
+        float projectileSize =
+            35.0f;
 
-        SDL_FRect projectileBounds = projectileIt->getBounds();
+        float velocityX = 0.0f;
+        float velocityY = 0.0f;
+
+        float projectileX =
+            player.getX();
+
+        float projectileY =
+            player.getY();
+
+        switch (player.getFacing()) {
+            case Direction::Up:
+                velocityY =
+                    -projectileSpeed;
+
+                projectileX =
+                    player.getX() +
+                    (50.0f - projectileSize)
+                    / 2.0f;
+
+                projectileY =
+                    player.getY() -
+                    projectileSize;
+
+                break;
+
+            case Direction::Down:
+                velocityY =
+                    projectileSpeed;
+
+                projectileX =
+                    player.getX() +
+                    (50.0f - projectileSize)
+                    / 2.0f;
+
+                projectileY =
+                    player.getY() +
+                    50.0f;
+
+                break;
+
+            case Direction::Left:
+                velocityX =
+                    -projectileSpeed;
+
+                projectileX =
+                    player.getX() -
+                    projectileSize;
+
+                projectileY =
+                    player.getY() +
+                    (50.0f - projectileSize)
+                    / 2.0f;
+
+                break;
+
+            case Direction::Right:
+                velocityX =
+                    projectileSpeed;
+
+                projectileX =
+                    player.getX() +
+                    50.0f;
+
+                projectileY =
+                    player.getY() +
+                    (50.0f - projectileSize)
+                    / 2.0f;
+
+                break;
+        }
+
+        projectiles.emplace_back(
+            projectileX,
+            projectileY,
+            velocityX,
+            velocityY,
+            projectileSize,
+            projectileSize,
+            40,
+            true
+        );
+
+        player.clearWantsToFireCannon();
+    }
+
+    auto projectileIt =
+        projectiles.begin();
+
+    while (
+    projectileIt !=
+    projectiles.end()
+    ) {
+        projectileIt->update(
+            deltaTime
+        );
+
+        bool projectileDestroyed =
+            false;
+
+        SDL_FRect projectileBounds =
+            projectileIt->getBounds();
 
         for (Enemy& enemy : enemies) {
             if (!enemy.isAlive()) {
                 continue;
             }
 
-            SDL_FRect enemyBounds = enemy.getBounds();
+            SDL_FRect enemyBounds =
+                enemy.getBounds();
+                
+            if (
+                SDL_HasRectIntersectionFloat(
+                &projectileBounds,
+                &enemyBounds)
+            ) {
+                if (projectileIt->isExplosive()) {
+                    float explosionSize = 100.0f;
 
-            if (SDL_HasRectIntersectionFloat(
-            &projectileBounds,
-            &enemyBounds)) {      
-                enemy.takeDamage(5);          
-                SDL_Log("Blaster hit an enemy!");
-                projectileIt = projectiles.erase(projectileIt);
+                    float explosionX =
+                    projectileBounds.x +
+                    projectileBounds.w / 2.0f -
+                    explosionSize / 2.0f;
+
+                    float explosionY =
+                    projectileBounds.y +
+                    projectileBounds.h / 2.0f -
+                    explosionSize / 2.0f;
+
+                    SDL_FRect explosionBounds = {
+                        explosionX,
+                        explosionY,
+                        explosionSize,
+                        explosionSize
+                    };
+
+                    for (Enemy& explosionEnemy : enemies) {
+                        if (!explosionEnemy.isAlive()) {
+                            continue;
+                        }
+
+                        SDL_FRect explosionEnemyBounds =
+                        explosionEnemy.getBounds();
+
+                        if (
+                        SDL_HasRectIntersectionFloat(   
+                        &explosionBounds,                        
+                        &explosionEnemyBounds
+                        )) {
+                            explosionEnemy.takeDamage(
+                            projectileIt->getDamage());
+                        }
+                    }
+                }
+                else {
+                    enemy.takeDamage(
+                    projectileIt->getDamage());
+                }
+
+                projectileIt =
+                projectiles.erase(projectileIt);
+
                 projectileDestroyed = true;
 
                 break;
             }
         }
 
-        if (!projectileDestroyed && projectileIt->isOffScreen()) {
-            projectileIt = projectiles.erase(projectileIt);
-            projectileDestroyed = true;
+        if (
+            !projectileDestroyed &&
+            projectileIt->isOffScreen()
+        ) {
+            projectileIt =
+                projectiles.erase(
+                    projectileIt
+                );
+
+            projectileDestroyed =
+                true;
         }
 
         if (!projectileDestroyed) {
@@ -422,12 +675,20 @@ void Game::update(float deltaTime) {
 }
 
 void Game::render() {
-    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+    SDL_SetRenderDrawColor(
+        renderer,
+        0,
+        0,
+        0,
+        255
+    );
+
     SDL_RenderClear(renderer);
 
     player.render(renderer);
     player.renderPunch(renderer);
     player.renderSword(renderer);
+    player.renderCannonCharge(renderer);
 
     for (Enemy& enemy : enemies) {
         enemy.render(renderer);
@@ -439,4 +700,3 @@ void Game::render() {
 
     SDL_RenderPresent(renderer);
 }
-
