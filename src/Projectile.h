@@ -2,6 +2,12 @@
 
 #include <SDL3/SDL.h>
 
+enum class ProjectileType {
+    Blaster,
+    Cannon,
+    Mage
+};
+
 class Projectile {
 public:
     Projectile(
@@ -12,7 +18,7 @@ public:
         float projectileWidth,
         float projectileHeight,
         int projectileDamage,
-        bool projectileExplosive
+        ProjectileType projectileType
     );
 
     void update(float deltaTime);
@@ -23,6 +29,7 @@ public:
 
     int getDamage() const;
     bool isExplosive() const;
+    ProjectileType getType() const;
 
 private:
     float x;
@@ -33,5 +40,6 @@ private:
     float height;
 
     int damage;
-    bool explosive;
+
+    ProjectileType type;
 };

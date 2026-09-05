@@ -475,7 +475,7 @@ void Game::update(float deltaTime) {
             10.0f,
             10.0f,
             5,
-            false
+            ProjectileType::Blaster
         );
 
         player.clearWantsToFire();
@@ -567,10 +567,56 @@ void Game::update(float deltaTime) {
             projectileSize,
             projectileSize,
             40,
-            true
+            ProjectileType::Cannon
         );
 
         player.clearWantsToFireCannon();
+    }
+
+    if (player.getWantsToFireMage()) {
+        float projectileSpeed = 400.0f;
+        float projectileSize = 18.0f;
+
+        float velocityX = 0.0f;
+        float velocityY = 0.0f;
+
+        switch (player.getFacing()) {
+            case Direction::Up:
+            velocityY = -projectileSpeed;
+            break;
+
+            case Direction::Down:
+            velocityY = projectileSpeed;
+            break;
+
+            case Direction::Left:
+            velocityX = -projectileSpeed;
+            break;
+
+            case Direction::Right:
+            velocityX = projectileSpeed;
+            break;
+        }
+
+        float projectileX =
+        player.getX() +
+        (50.0f - projectileSize) / 2.0f;
+
+        float projectileY =
+        player.getY() +
+        (50.0f - projectileSize) / 2.0f;
+
+        projectiles.emplace_back(
+        projectileX,
+        projectileY,
+        velocityX,
+        velocityY,
+        projectileSize,
+        projectileSize,
+        10,
+        ProjectileType::Mage);
+
+        player.clearWantsToFireMage();
     }
 
     auto projectileIt =
@@ -689,6 +735,7 @@ void Game::render() {
     player.renderPunch(renderer);
     player.renderSword(renderer);
     player.renderCannonCharge(renderer);
+    player.renderMageCharge(renderer);
 
     for (Enemy& enemy : enemies) {
         enemy.render(renderer);

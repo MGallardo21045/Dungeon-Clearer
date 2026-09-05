@@ -57,6 +57,9 @@ public:
     bool getWantsToFireCannon() const;
     void clearWantsToFireCannon();
     void renderCannonCharge(SDL_Renderer* renderer);
+    bool getWantsToFireMage() const;
+    void clearWantsToFireMage();
+    void renderMageCharge(SDL_Renderer* renderer);
     
 private:
     float x;
@@ -94,4 +97,13 @@ private:
     bool cannonCharging;
     float cannonChargeTimer;
     const float cannonChargeDuration = 0.5f;
+    bool wantsToFireMage;
+    bool mageCharging;
+    float mageChargeTimer;
+    const float mageChargeDuration = 0.25f;
+    int mageShotsRemaining;
+    float mageBurstTimer;
+    const float mageBurstDelay = 0.10f;
+    float mageCooldownTimer;
+    const float mageCooldownDuration = 0.5f;
 };

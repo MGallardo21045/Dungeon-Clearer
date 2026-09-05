@@ -8,7 +8,7 @@ Projectile::Projectile(
     float projectileWidth,
     float projectileHeight,
     int projectileDamage,
-    bool projectileExplosive
+    ProjectileType projectileType
 )
     : x(startX),
       y(startY),
@@ -17,7 +17,7 @@ Projectile::Projectile(
       width(projectileWidth),
       height(projectileHeight),
       damage(projectileDamage),
-      explosive(projectileExplosive)
+      type(projectileType)
 {
 }
 
@@ -34,8 +34,42 @@ void Projectile::render(SDL_Renderer* renderer) {
         height
     };
 
-    SDL_SetRenderDrawColor(renderer, 0, 255, 255, 255);
-    SDL_RenderFillRect(renderer, &projectileRect);
+    switch (type) {
+        case ProjectileType::Blaster:
+            SDL_SetRenderDrawColor(
+                renderer,
+                0,
+                255,
+                255,
+                255
+            );
+            break;
+
+        case ProjectileType::Cannon:
+            SDL_SetRenderDrawColor(
+                renderer,
+                0,
+                150,
+                255,
+                255
+            );
+            break;
+
+        case ProjectileType::Mage:
+            SDL_SetRenderDrawColor(
+                renderer,
+                180,
+                0,
+                255,
+                255
+            );
+            break;
+    }
+
+    SDL_RenderFillRect(
+        renderer,
+        &projectileRect
+    );
 }
 
 SDL_FRect Projectile::getBounds() const {
@@ -61,5 +95,9 @@ int Projectile::getDamage() const {
 }
 
 bool Projectile::isExplosive() const {
-    return explosive;
+    return type == ProjectileType::Cannon;
+}
+
+ProjectileType Projectile::getType() const {
+    return type;
 }
