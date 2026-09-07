@@ -1,5 +1,6 @@
 #include "Game.h"
 #include <cmath>
+#include <random>
 
 Game::Game()
     : window(nullptr),
@@ -170,6 +171,16 @@ void Game::update(float deltaTime) {
             continue;
         }
 
+        enemy.update(
+            deltaTime,
+            player.getX(),
+            player.getY()
+        );
+
+        if (!enemy.isAlive()) {
+            continue;
+        }
+
         float directionX =
             player.getX() - enemy.getX();
 
@@ -313,7 +324,7 @@ void Game::update(float deltaTime) {
         enemy.setHit(false);
     }
 
-   if (player.isPunchActive() &&
+    if (player.isPunchActive() &&
         !player.hasPunchHit()) {
 
         SDL_FRect punchBounds =
@@ -574,47 +585,57 @@ void Game::update(float deltaTime) {
     }
 
     if (player.getWantsToFireMage()) {
-        float projectileSpeed = 400.0f;
-        float projectileSize = 18.0f;
+        float projectileSpeed =
+            400.0f;
+
+        float projectileSize =
+            18.0f;
 
         float velocityX = 0.0f;
         float velocityY = 0.0f;
 
         switch (player.getFacing()) {
             case Direction::Up:
-            velocityY = -projectileSpeed;
-            break;
+                velocityY =
+                    -projectileSpeed;
+                break;
 
             case Direction::Down:
-            velocityY = projectileSpeed;
-            break;
+                velocityY =
+                    projectileSpeed;
+                break;
 
             case Direction::Left:
-            velocityX = -projectileSpeed;
-            break;
+                velocityX =
+                    -projectileSpeed;
+                break;
 
             case Direction::Right:
-            velocityX = projectileSpeed;
-            break;
+                velocityX =
+                    projectileSpeed;
+                break;
         }
 
         float projectileX =
-        player.getX() +
-        (50.0f - projectileSize) / 2.0f;
+            player.getX() +
+            (50.0f - projectileSize) /
+            2.0f;
 
         float projectileY =
-        player.getY() +
-        (50.0f - projectileSize) / 2.0f;
+            player.getY() +
+            (50.0f - projectileSize) /
+            2.0f;
 
         projectiles.emplace_back(
-        projectileX,
-        projectileY,
-        velocityX,
-        velocityY,
-        projectileSize,
-        projectileSize,
-        10,
-        ProjectileType::Mage);
+            projectileX,
+            projectileY,
+            velocityX,
+            velocityY,
+            projectileSize,
+            projectileSize,
+            10,
+            ProjectileType::Mage
+        );
 
         player.clearWantsToFireMage();
     }
@@ -623,8 +644,8 @@ void Game::update(float deltaTime) {
         projectiles.begin();
 
     while (
-    projectileIt !=
-    projectiles.end()
+        projectileIt !=
+        projectiles.end()
     ) {
         projectileIt->update(
             deltaTime
@@ -643,24 +664,31 @@ void Game::update(float deltaTime) {
 
             SDL_FRect enemyBounds =
                 enemy.getBounds();
-                
+
             if (
                 SDL_HasRectIntersectionFloat(
-                &projectileBounds,
-                &enemyBounds)
+                    &projectileBounds,
+                    &enemyBounds
+                )
             ) {
+
                 if (projectileIt->isExplosive()) {
-                    float explosionSize = 100.0f;
+                    float explosionSize =
+                        100.0f;
 
                     float explosionX =
-                    projectileBounds.x +
-                    projectileBounds.w / 2.0f -
-                    explosionSize / 2.0f;
+                        projectileBounds.x +
+                        projectileBounds.w /
+                        2.0f -
+                        explosionSize /
+                        2.0f;
 
                     float explosionY =
-                    projectileBounds.y +
-                    projectileBounds.h / 2.0f -
-                    explosionSize / 2.0f;
+                        projectileBounds.y +
+                        projectileBounds.h /
+                        2.0f -
+                        explosionSize /
+                        2.0f;
 
                     SDL_FRect explosionBounds = {
                         explosionX,
@@ -669,33 +697,68 @@ void Game::update(float deltaTime) {
                         explosionSize
                     };
 
-                    for (Enemy& explosionEnemy : enemies) {
-                        if (!explosionEnemy.isAlive()) {
+                    for (
+                        Enemy& explosionEnemy :
+                        enemies
+                    ) {
+                        if (
+                            !explosionEnemy.isAlive()
+                        ) {
                             continue;
                         }
 
-                        SDL_FRect explosionEnemyBounds =
-                        explosionEnemy.getBounds();
+                        SDL_FRect
+                            explosionEnemyBounds =
+                                explosionEnemy
+                                    .getBounds();
 
                         if (
-                        SDL_HasRectIntersectionFloat(   
-                        &explosionBounds,                        
-                        &explosionEnemyBounds
-                        )) {
+                            SDL_HasRectIntersectionFloat(
+                                &explosionBounds,
+                                &explosionEnemyBounds
+                            )
+                        ) {
                             explosionEnemy.takeDamage(
-                            projectileIt->getDamage());
+                                projectileIt
+                                    ->getDamage()
+                            );
                         }
                     }
                 }
+
                 else {
                     enemy.takeDamage(
-                    projectileIt->getDamage());
+                        projectileIt->getDamage()
+                    );
+
+                    if (
+                    projectileIt->getType() ==
+                    ProjectileType::Mage) {
+                        static std::random_device randomDevice;
+                        static std::mt19937 randomGenerator(
+                        randomDevice());
+
+                        static std::uniform_int_distribution<int>
+                        statusDistribution(0, 2);
+
+                        int statusRoll =
+                        statusDistribution(randomGenerator);
+
+                        StatusEffect effect =
+                        static_cast<StatusEffect>(
+                        statusRoll);
+
+                        enemy.applyStatusEffect(effect);
+                    }
                 }
 
                 projectileIt =
-                projectiles.erase(projectileIt);
+                    projectiles.erase(
+                        projectileIt
+                    );
 
-                projectileDestroyed = true;
+                projectileDestroyed =
+                    true;
 
                 break;
             }
