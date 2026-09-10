@@ -30,6 +30,13 @@ public:
     int getDamage() const;
     bool isExplosive() const;
     ProjectileType getType() const;
+    void setMageShotInfo(
+        int shotNumber,
+        int statusShot
+    );
+
+    int getMageShotNumber() const;
+    int getMageStatusShot() const;
 
 private:
     float x;
@@ -42,4 +49,7 @@ private:
     int damage;
 
     ProjectileType type;
+
+    int mageShotNumber;
+    int mageStatusShot;
 };

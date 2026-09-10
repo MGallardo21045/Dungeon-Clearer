@@ -85,7 +85,8 @@ void Game::processInput() {
 void Game::update(float deltaTime) {
     player.update(deltaTime);
 
-    const bool* keyboard = SDL_GetKeyboardState(nullptr);
+    const bool* keyboard =
+        SDL_GetKeyboardState(nullptr);
 
     float moveX = 0.0f;
     float moveY = 0.0f;
@@ -110,60 +111,78 @@ void Game::update(float deltaTime) {
         player.setFacing(Direction::Right);
     }
 
-    float oldX = player.getX();
+    float oldX =
+        player.getX();
 
     player.moveX(moveX);
 
-    SDL_FRect playerBounds = player.getBounds();
+    SDL_FRect playerBounds =
+        player.getBounds();
 
-    bool collidedOnX = false;
+    bool collidedOnX =
+        false;
 
     for (Enemy& enemy : enemies) {
         if (!enemy.isAlive()) {
             continue;
         }
 
-        SDL_FRect enemyBounds = enemy.getBounds();
+        SDL_FRect enemyBounds =
+            enemy.getBounds();
 
-        if (SDL_HasRectIntersectionFloat(
-            &playerBounds,
-            &enemyBounds)) {
-
+        if (
+            SDL_HasRectIntersectionFloat(
+                &playerBounds,
+                &enemyBounds
+            )
+        ) {
             collidedOnX = true;
             break;
         }
     }
 
     if (collidedOnX) {
-        player.setPosition(oldX, player.getY());
+        player.setPosition(
+            oldX,
+            player.getY()
+        );
     }
 
-    float oldY = player.getY();
+    float oldY =
+        player.getY();
 
     player.moveY(moveY);
 
-    playerBounds = player.getBounds();
+    playerBounds =
+        player.getBounds();
 
-    bool collidedOnY = false;
+    bool collidedOnY =
+        false;
 
     for (Enemy& enemy : enemies) {
         if (!enemy.isAlive()) {
             continue;
         }
 
-        SDL_FRect enemyBounds = enemy.getBounds();
+        SDL_FRect enemyBounds =
+            enemy.getBounds();
 
-        if (SDL_HasRectIntersectionFloat(
-            &playerBounds,
-            &enemyBounds)) {
-
+        if (
+            SDL_HasRectIntersectionFloat(
+                &playerBounds,
+                &enemyBounds
+            )
+        ) {
             collidedOnY = true;
             break;
         }
     }
 
     if (collidedOnY) {
-        player.setPosition(player.getX(), oldY);
+        player.setPosition(
+            player.getX(),
+            oldY
+        );
     }
 
     for (Enemy& enemy : enemies) {
@@ -182,15 +201,18 @@ void Game::update(float deltaTime) {
         }
 
         float directionX =
-            player.getX() - enemy.getX();
+            player.getX() -
+            enemy.getX();
 
         float directionY =
-            player.getY() - enemy.getY();
+            player.getY() -
+            enemy.getY();
 
-        float length = std::sqrt(
-            directionX * directionX +
-            directionY * directionY
-        );
+        float length =
+            std::sqrt(
+                directionX * directionX +
+                directionY * directionY
+            );
 
         float enemyMoveX = 0.0f;
         float enemyMoveY = 0.0f;
@@ -236,10 +258,12 @@ void Game::update(float deltaTime) {
             SDL_FRect otherBounds =
                 otherEnemy.getBounds();
 
-            if (SDL_HasRectIntersectionFloat(
-                &enemyBounds,
-                &otherBounds)) {
-
+            if (
+                SDL_HasRectIntersectionFloat(
+                    &enemyBounds,
+                    &otherBounds
+                )
+            ) {
                 collidedWithEnemyOnX =
                     true;
 
@@ -257,9 +281,10 @@ void Game::update(float deltaTime) {
             player.takeDamage(10);
         }
 
-        if (collidedWithPlayerOnX ||
-            collidedWithEnemyOnX) {
-
+        if (
+            collidedWithPlayerOnX ||
+            collidedWithEnemyOnX
+        ) {
             enemy.setPosition(
                 oldEnemyX,
                 enemy.getY()
@@ -289,10 +314,12 @@ void Game::update(float deltaTime) {
             SDL_FRect otherBounds =
                 otherEnemy.getBounds();
 
-            if (SDL_HasRectIntersectionFloat(
-                &enemyBounds,
-                &otherBounds)) {
-
+            if (
+                SDL_HasRectIntersectionFloat(
+                    &enemyBounds,
+                    &otherBounds
+                )
+            ) {
                 collidedWithEnemyOnY =
                     true;
 
@@ -310,9 +337,10 @@ void Game::update(float deltaTime) {
             player.takeDamage(10);
         }
 
-        if (collidedWithPlayerOnY ||
-            collidedWithEnemyOnY) {
-
+        if (
+            collidedWithPlayerOnY ||
+            collidedWithEnemyOnY
+        ) {
             enemy.setPosition(
                 enemy.getX(),
                 oldEnemyY
@@ -324,9 +352,10 @@ void Game::update(float deltaTime) {
         enemy.setHit(false);
     }
 
-    if (player.isPunchActive() &&
-        !player.hasPunchHit()) {
-
+    if (
+        player.isPunchActive() &&
+        !player.hasPunchHit()
+    ) {
         SDL_FRect punchBounds =
             player.getPunchBounds();
 
@@ -338,25 +367,33 @@ void Game::update(float deltaTime) {
             SDL_FRect enemyBounds =
                 enemy.getBounds();
 
-            if (SDL_HasRectIntersectionFloat(
-                &punchBounds,
-                &enemyBounds)) {
-
+            if (
+                SDL_HasRectIntersectionFloat(
+                    &punchBounds,
+                    &enemyBounds
+                )
+            ) {
                 enemy.setHit(true);
 
                 int damage = 10;
 
-                if (player.getComboStep() == 3) {
+                if (
+                    player.getComboStep() == 3
+                ) {
                     damage = 15;
                 }
 
                 enemy.takeDamage(damage);
 
-                if (player.getComboStep() == 3) {
+                if (
+                    player.getComboStep() == 3
+                ) {
                     float knockbackDistance =
                         20.0f;
 
-                    switch (player.getFacing()) {
+                    switch (
+                        player.getFacing()
+                    ) {
                         case Direction::Up:
                             enemy.moveY(
                                 -knockbackDistance
@@ -390,7 +427,9 @@ void Game::update(float deltaTime) {
         }
     }
 
-    if (player.isSwordSwingActive()) {
+    if (
+        player.isSwordSwingActive()
+    ) {
         SDL_FRect swordBounds =
             player.getSwordBounds();
 
@@ -402,15 +441,16 @@ void Game::update(float deltaTime) {
             SDL_FRect enemyBounds =
                 enemy.getBounds();
 
-            if (SDL_HasRectIntersectionFloat(
-                &swordBounds,
-                &enemyBounds)) {
-
+            if (
+                SDL_HasRectIntersectionFloat(
+                    &swordBounds,
+                    &enemyBounds
+                )
+            ) {
                 if (
                     enemy.getLastSwordAttackHit() !=
                     player.getSwordAttackId()
                 ) {
-
                     int swordDamage = 20;
 
                     switch (
@@ -449,14 +489,18 @@ void Game::update(float deltaTime) {
         }
     }
 
-    if (player.getWantsToFire()) {
+    if (
+        player.getWantsToFire()
+    ) {
         float projectileSpeed =
             500.0f;
 
         float velocityX = 0.0f;
         float velocityY = 0.0f;
 
-        switch (player.getFacing()) {
+        switch (
+            player.getFacing()
+        ) {
             case Direction::Up:
                 velocityY =
                     -projectileSpeed;
@@ -492,7 +536,9 @@ void Game::update(float deltaTime) {
         player.clearWantsToFire();
     }
 
-    if (player.getWantsToFireCannon()) {
+    if (
+        player.getWantsToFireCannon()
+    ) {
         float projectileSpeed =
             300.0f;
 
@@ -508,15 +554,17 @@ void Game::update(float deltaTime) {
         float projectileY =
             player.getY();
 
-        switch (player.getFacing()) {
+        switch (
+            player.getFacing()
+        ) {
             case Direction::Up:
                 velocityY =
                     -projectileSpeed;
 
                 projectileX =
                     player.getX() +
-                    (50.0f - projectileSize)
-                    / 2.0f;
+                    (50.0f - projectileSize) /
+                    2.0f;
 
                 projectileY =
                     player.getY() -
@@ -530,8 +578,8 @@ void Game::update(float deltaTime) {
 
                 projectileX =
                     player.getX() +
-                    (50.0f - projectileSize)
-                    / 2.0f;
+                    (50.0f - projectileSize) /
+                    2.0f;
 
                 projectileY =
                     player.getY() +
@@ -549,8 +597,8 @@ void Game::update(float deltaTime) {
 
                 projectileY =
                     player.getY() +
-                    (50.0f - projectileSize)
-                    / 2.0f;
+                    (50.0f - projectileSize) /
+                    2.0f;
 
                 break;
 
@@ -564,8 +612,8 @@ void Game::update(float deltaTime) {
 
                 projectileY =
                     player.getY() +
-                    (50.0f - projectileSize)
-                    / 2.0f;
+                    (50.0f - projectileSize) /
+                    2.0f;
 
                 break;
         }
@@ -584,7 +632,9 @@ void Game::update(float deltaTime) {
         player.clearWantsToFireCannon();
     }
 
-    if (player.getWantsToFireMage()) {
+    if (
+        player.getWantsToFireMage()
+    ) {
         float projectileSpeed =
             400.0f;
 
@@ -594,7 +644,9 @@ void Game::update(float deltaTime) {
         float velocityX = 0.0f;
         float velocityY = 0.0f;
 
-        switch (player.getFacing()) {
+        switch (
+            player.getFacing()
+        ) {
             case Direction::Up:
                 velocityY =
                     -projectileSpeed;
@@ -637,6 +689,11 @@ void Game::update(float deltaTime) {
             ProjectileType::Mage
         );
 
+        projectiles.back().setMageShotInfo(
+            player.getMageCurrentShotNumber(),
+            player.getMageStatusShot()
+        );
+
         player.clearWantsToFireMage();
     }
 
@@ -671,8 +728,9 @@ void Game::update(float deltaTime) {
                     &enemyBounds
                 )
             ) {
-
-                if (projectileIt->isExplosive()) {
+                if (
+                    projectileIt->isExplosive()
+                ) {
                     float explosionSize =
                         100.0f;
 
@@ -725,30 +783,45 @@ void Game::update(float deltaTime) {
                         }
                     }
                 }
-
                 else {
                     enemy.takeDamage(
                         projectileIt->getDamage()
                     );
 
                     if (
-                    projectileIt->getType() ==
-                    ProjectileType::Mage) {
-                        static std::random_device randomDevice;
-                        static std::mt19937 randomGenerator(
-                        randomDevice());
+                        projectileIt->getType() ==
+                            ProjectileType::Mage &&
+                        !enemy.hasStatusEffect()
+                    ) {
+                        int shotNumber =
+                            projectileIt
+                                ->getMageShotNumber();
 
-                        static std::uniform_int_distribution<int>
-                        statusDistribution(0, 2);
+                        int statusShot =
+                            projectileIt
+                                ->getMageStatusShot();
 
-                        int statusRoll =
-                        statusDistribution(randomGenerator);
+                        if (
+                            statusShot != 0 &&
+                            shotNumber ==
+                                statusShot
+                        ) {
+                            switch (
+                                shotNumber
+                            ) {
+                                case 1:
+                                    enemy.applyBurn();
+                                    break;
 
-                        StatusEffect effect =
-                        static_cast<StatusEffect>(
-                        statusRoll);
+                                case 2:
+                                    enemy.applyShock();
+                                    break;
 
-                        enemy.applyStatusEffect(effect);
+                                case 3:
+                                    enemy.applyFreeze();
+                                    break;
+                            }
+                        }
                     }
                 }
 
@@ -777,7 +850,9 @@ void Game::update(float deltaTime) {
                 true;
         }
 
-        if (!projectileDestroyed) {
+        if (
+            !projectileDestroyed
+        ) {
             ++projectileIt;
         }
     }

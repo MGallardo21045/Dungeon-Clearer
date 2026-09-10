@@ -17,7 +17,9 @@ Projectile::Projectile(
       width(projectileWidth),
       height(projectileHeight),
       damage(projectileDamage),
-      type(projectileType)
+      type(projectileType),
+      mageShotNumber(0),
+      mageStatusShot(0)
 {
 }
 
@@ -100,4 +102,20 @@ bool Projectile::isExplosive() const {
 
 ProjectileType Projectile::getType() const {
     return type;
+}
+
+void Projectile::setMageShotInfo(
+    int shotNumber,
+    int statusShot
+) {
+    mageShotNumber = shotNumber;
+    mageStatusShot = statusShot;
+}
+
+int Projectile::getMageShotNumber() const {
+    return mageShotNumber;
+}
+
+int Projectile::getMageStatusShot() const {
+    return mageStatusShot;
 }

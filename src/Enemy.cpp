@@ -283,3 +283,7 @@ void Enemy::applyStatusEffect(StatusEffect effect) {
             break;
     }
 }
+
+bool Enemy::hasStatusEffect() const {
+    return burning || shocked || frozen;
+}

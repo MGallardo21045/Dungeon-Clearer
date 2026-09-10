@@ -57,6 +57,7 @@ public:
     bool isFrozen() const;
 
     void applyStatusEffect(StatusEffect effect);
+    bool hasStatusEffect() const;
 
 private:
     float x;

@@ -1,4 +1,5 @@
 #include "Player.h"
+#include <random>
 
 Player::Player()
     : x(375.0f),
@@ -33,7 +34,9 @@ Player::Player()
       mageChargeTimer(0.0f),
       mageShotsRemaining(0),
       mageBurstTimer(0.0f),
-      mageCooldownTimer(0.0f)
+      mageCooldownTimer(0.0f),
+      mageCurrentShotNumber(0),
+      mageStatusShot(0)
 {
 }
 
@@ -147,6 +150,29 @@ void Player::update(float deltaTime) {
 
             mageShotsRemaining = 3;
             mageBurstTimer = 0.0f;
+
+            mageCurrentShotNumber = 0;
+            mageStatusShot = 0;
+
+            static std::random_device randomDevice;
+            static std::mt19937 randomGenerator(
+            randomDevice());
+
+            static std::uniform_int_distribution<int>
+            statusChanceRoll(1, 100);
+
+            int roll = statusChanceRoll(randomGenerator);
+
+            if (roll <= 10) {
+                static std::uniform_int_distribution<int>
+                statusShotRoll(1, 3);
+
+                mageStatusShot = statusShotRoll(randomGenerator);
+
+                SDL_Log(
+                "Mage status burst! Special shot: %d",
+                mageStatusShot);
+            }
         }
     }
 
@@ -154,9 +180,10 @@ void Player::update(float deltaTime) {
         mageBurstTimer -= deltaTime;
 
         if (
-            mageBurstTimer <= 0.0f &&
-            !wantsToFireMage
-        ) {
+        mageBurstTimer <= 0.0f &&
+        !wantsToFireMage) {
+            mageCurrentShotNumber = 4 - mageShotsRemaining;
+
             wantsToFireMage = true;
 
             mageShotsRemaining--;
@@ -875,4 +902,12 @@ bool Player::getWantsToFireMage() const {
 
 void Player::clearWantsToFireMage() {
     wantsToFireMage = false;
+}
+
+int Player::getMageCurrentShotNumber() const {
+    return mageCurrentShotNumber;
+}
+
+int Player::getMageStatusShot() const {
+    return mageStatusShot;
 }

@@ -60,6 +60,8 @@ public:
     bool getWantsToFireMage() const;
     void clearWantsToFireMage();
     void renderMageCharge(SDL_Renderer* renderer);
+    int getMageCurrentShotNumber() const;
+    int getMageStatusShot() const;
     
 private:
     float x;
@@ -106,4 +108,6 @@ private:
     const float mageBurstDelay = 0.10f;
     float mageCooldownTimer;
     const float mageCooldownDuration = 0.5f;
+    int mageCurrentShotNumber;
+    int mageStatusShot;
 };
