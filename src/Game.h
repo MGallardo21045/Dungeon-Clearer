@@ -28,4 +28,6 @@ private:
 
     std::vector<Enemy> enemies;
     std::vector<Projectile> projectiles;
+
+    bool gameOver;
 };

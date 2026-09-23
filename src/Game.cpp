@@ -5,7 +5,8 @@
 Game::Game()
     : window(nullptr),
       renderer(nullptr),
-      running(false)
+      running(false),
+      gameOver(false)
 {
     enemies.emplace_back(550.0f, 275.0f);
     enemies.emplace_back(150.0f, 150.0f);
@@ -83,6 +84,10 @@ void Game::processInput() {
 }
 
 void Game::update(float deltaTime) {
+    if (gameOver) {
+        return;
+    }
+
     player.update(deltaTime);
 
     const bool* keyboard =
@@ -281,6 +286,12 @@ void Game::update(float deltaTime) {
             player.takeDamage(10);
         }
 
+        if (!player.isAlive()) {
+            gameOver = true;
+            SDL_Log("GAME OVER");
+            return;
+        }
+
         if (
             collidedWithPlayerOnX ||
             collidedWithEnemyOnX
@@ -335,6 +346,12 @@ void Game::update(float deltaTime) {
 
         if (collidedWithPlayerOnY) {
             player.takeDamage(10);
+        }
+
+        if (!player.isAlive()) {
+            gameOver = true;
+            SDL_Log("GAME OVER");
+            return;
         }
 
         if (
@@ -882,6 +899,14 @@ void Game::render() {
     for (Projectile& projectile : projectiles) {
         projectile.render(renderer);
     }
+
+    if (gameOver) {
+        SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+        SDL_SetRenderScale(renderer, 4.0f, 4.0f);
+        SDL_RenderDebugText(renderer, 64.0f, 71.0f, "GAME OVER");
+    }
+
+    SDL_SetRenderScale(renderer, 1.0f, 1.0f);
 
     SDL_RenderPresent(renderer);
 }
