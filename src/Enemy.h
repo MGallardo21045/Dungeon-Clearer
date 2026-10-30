@@ -12,39 +12,24 @@ class Enemy {
 public:
     Enemy(float startX, float startY);
 
+    void update(float deltaTime);
     void render(SDL_Renderer* renderer) const;
 
     SDL_FRect getBounds() const;
 
-    void setHit(bool value);
-
     void takeDamage(int amount);
-
-    void update(
-        float deltaTime,
-        float playerX,
-        float playerY
-    );
-
     bool isAlive() const;
 
     void moveX(float amount);
-
     void moveY(float amount);
 
     float getX() const;
-
     float getY() const;
-
     float getSpeed() const;
 
-    void setPosition(
-        float newX,
-        float newY
-    );
+    void setPosition(float newX, float newY);
 
     int getLastSwordAttackHit() const;
-
     void setLastSwordAttackHit(int attackId);
 
     void applyBurn();
@@ -62,37 +47,30 @@ public:
 private:
     float x;
     float y;
-
     float width;
     float height;
 
-    bool wasHit;
-
     int health;
-
     float speed;
 
     int lastSwordAttackHit;
 
+    float hitFlashTimer = 0.0f;
+    static constexpr float hitFlashDuration = 0.12f;
+
     bool burning;
-
     float burnDurationTimer;
-    const float burnDuration = 3.0f;
-
     float burnTickTimer;
-    const float burnTickInterval = 0.5f;
 
-    const int burnDamage = 2;
+    static constexpr float burnDuration = 3.0f;
+    static constexpr float burnTickInterval = 0.5f;
+    static constexpr int burnDamage = 2;
 
     bool shocked;
-
-    float shockDurationTimer;
-    const float shockDuration = 2.0f;
-
-    const float shockSpeedMultiplier = 0.5f;
+    static constexpr float shockSpeedMultiplier = 0.5f;
 
     bool frozen;
-
     float freezeDurationTimer;
-    const float freezeDuration = 1.5f;
+
+    static constexpr float freezeDuration = 1.5f;
 };

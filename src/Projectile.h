@@ -1,3 +1,4 @@
+
 #pragma once
 
 #include <SDL3/SDL.h>
@@ -22,14 +23,15 @@ public:
     );
 
     void update(float deltaTime);
-    void render(SDL_Renderer* renderer);
+    void render(SDL_Renderer* renderer) const;
 
     SDL_FRect getBounds() const;
-    bool isOffScreen() const;
+    bool isOffScreen(float screenWidth, float screenHeight) const;
 
     int getDamage() const;
     bool isExplosive() const;
     ProjectileType getType() const;
+
     void setMageShotInfo(
         int shotNumber,
         int statusShot

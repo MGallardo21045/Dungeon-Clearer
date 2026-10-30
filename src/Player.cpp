@@ -41,14 +41,11 @@ Player::Player()
 }
 
 void Player::update(float deltaTime) {
-    if (isPunching) {
-        punchTimer -= deltaTime;
-
-        if (punchTimer <= 0.0f) {
-            isPunching = false;
-            punchTimer = 0.0f;
-        }
-    }
+    updateFighter(deltaTime);
+    updateSword(deltaTime);
+    updateBlaster(deltaTime);
+    updateCannon(deltaTime);
+    updateMage(deltaTime);
 
     if (invulnerabilityTimer > 0.0f) {
         invulnerabilityTimer -= deltaTime;
@@ -57,152 +54,14 @@ void Player::update(float deltaTime) {
             invulnerabilityTimer = 0.0f;
         }
     }
-
-    if (comboTimer > 0.0f) {
-        comboTimer -= deltaTime;
-
-        if (comboTimer <= 0.0f) {
-            comboTimer = 0.0f;
-            comboStep = 0;
-        }
-    }
-
-    if (isSwinging) {
-        swingTimer -= deltaTime;
-
-        if (swingTimer <= 0.0f) {
-            isSwinging = false;
-            swingTimer = 0.0f;
-        }
-    }
-
-    if (swordComboTimer > 0.0f) {
-        swordComboTimer -= deltaTime;
-
-        if (swordComboTimer <= 0.0f) {
-            swordComboTimer = 0.0f;
-            swordComboStep = 0;
-        }
-    }
-
-    if (swordOnCooldown) {
-        swordCooldownTimer -= deltaTime;
-
-        if (swordCooldownTimer <= 0.0f) {
-            swordCooldownTimer = 0.0f;
-            swordOnCooldown = false;
-
-            SDL_Log("Sword ready!");
-        }
-    }
-
-    if (blasterFireTimer > 0.0f) {
-        blasterFireTimer -= deltaTime;
-
-        if (blasterFireTimer < 0.0f) {
-            blasterFireTimer = 0.0f;
-        }
-    }
-
-    if (
-        playerClass == PlayerClass::Blaster &&
-        blasterFireHeld &&
-        blasterFireTimer <= 0.0f
-    ) {
-        wantsToFire = true;
-        blasterFireTimer = blasterFireRate;
-    }
-
-    if (cannonFireTimer > 0.0f) {
-        cannonFireTimer -= deltaTime;
-
-        if (cannonFireTimer < 0.0f) {
-            cannonFireTimer = 0.0f;
-        }
-    }
-
-    if (cannonCharging) {
-        cannonChargeTimer -= deltaTime;
-
-        if (cannonChargeTimer <= 0.0f) {
-            cannonChargeTimer = 0.0f;
-            cannonCharging = false;
-
-            wantsToFireCannon = true;
-            cannonFireTimer = cannonFireCooldown;
-        }
-    }
-
-    if (mageCooldownTimer > 0.0f) {
-        mageCooldownTimer -= deltaTime;
-
-        if (mageCooldownTimer < 0.0f) {
-            mageCooldownTimer = 0.0f;
-        }
-    }
-
-    if (mageCharging) {
-        mageChargeTimer -= deltaTime;
-
-        if (mageChargeTimer <= 0.0f) {
-            mageChargeTimer = 0.0f;
-            mageCharging = false;
-
-            mageShotsRemaining = 3;
-            mageBurstTimer = 0.0f;
-
-            mageCurrentShotNumber = 0;
-            mageStatusShot = 0;
-
-            static std::random_device randomDevice;
-            static std::mt19937 randomGenerator(
-            randomDevice());
-
-            static std::uniform_int_distribution<int>
-            statusChanceRoll(1, 100);
-
-            int roll = statusChanceRoll(randomGenerator);
-
-            if (roll <= 10) {
-                static std::uniform_int_distribution<int>
-                statusShotRoll(1, 3);
-
-                mageStatusShot = statusShotRoll(randomGenerator);
-
-                SDL_Log(
-                "Mage status burst! Special shot: %d",
-                mageStatusShot);
-            }
-        }
-    }
-
-    if (mageShotsRemaining > 0) {
-        mageBurstTimer -= deltaTime;
-
-        if (
-        mageBurstTimer <= 0.0f &&
-        !wantsToFireMage) {
-            mageCurrentShotNumber = 4 - mageShotsRemaining;
-
-            wantsToFireMage = true;
-
-            mageShotsRemaining--;
-
-            mageBurstTimer = mageBurstDelay;
-
-            if (mageShotsRemaining == 0) {
-                mageCooldownTimer = mageCooldownDuration;
-            }
-        }
-    }
 }
 
-void Player::render(SDL_Renderer* renderer) {
+void Player::render(SDL_Renderer* renderer) const {
     SDL_FRect playerRect = {
         x,
         y,
-        50.0f,
-        50.0f
+        kPlayerSize,
+        kPlayerSize
     };
 
     switch (facing) {
@@ -253,7 +112,7 @@ void Player::render(SDL_Renderer* renderer) {
     );
 }
 
-void Player::renderPunch(SDL_Renderer* renderer) {
+void Player::renderPunch(SDL_Renderer* renderer) const {
     if (!isPunching) {
         return;
     }
@@ -275,128 +134,118 @@ void Player::renderPunch(SDL_Renderer* renderer) {
 }
 
 void Player::handleEvent(const SDL_Event& event) {
-    if (event.type == SDL_EVENT_KEY_DOWN) {
-        if (event.key.scancode == SDL_SCANCODE_1) {
+    if (event.type == SDL_EVENT_KEY_UP &&
+        event.key.scancode == SDL_SCANCODE_SPACE) {
+        attackKeyHeld = false;
+        blasterFireHeld = false;
+        return;
+    }
+
+    if (event.type != SDL_EVENT_KEY_DOWN) {
+        return;
+    }
+
+    // Ignore key-repeat events: a held key should not start a new attack.
+    if (event.key.repeat) {
+        return;
+    }
+
+    handleClassSelection(event.key.scancode);
+
+    if (event.key.scancode != SDL_SCANCODE_SPACE || attackKeyHeld) {
+        return;
+    }
+
+    attackKeyHeld = true;
+    if (playerClass == PlayerClass::Blaster) {
+        blasterFireHeld = true;
+    } else {
+        handleAttackInput();
+    }
+}
+
+void Player::handleClassSelection(SDL_Scancode key) {
+    switch (key) {
+        case SDL_SCANCODE_1:
             setPlayerClass(PlayerClass::Fighter);
             SDL_Log("Class selected: Fighter");
-        }
-        else if (event.key.scancode == SDL_SCANCODE_2) {
+            break;
+        case SDL_SCANCODE_2:
             setPlayerClass(PlayerClass::SwordUser);
             SDL_Log("Class selected: Sword User");
-        }
-        else if (event.key.scancode == SDL_SCANCODE_3) {
+            break;
+        case SDL_SCANCODE_3:
             setPlayerClass(PlayerClass::Blaster);
             SDL_Log("Class selected: Blaster");
-        }
-        else if (event.key.scancode == SDL_SCANCODE_4) {
+            break;
+        case SDL_SCANCODE_4:
             setPlayerClass(PlayerClass::Cannon);
             SDL_Log("Class selected: Cannon");
-        }
-        else if (event.key.scancode == SDL_SCANCODE_5) {
+            break;
+        case SDL_SCANCODE_5:
             setPlayerClass(PlayerClass::Mage);
             SDL_Log("Class selected: Mage");
-        }
-
-        if (
-            event.key.scancode == SDL_SCANCODE_SPACE &&
-            !attackKeyHeld
-        ) {
-            attackKeyHeld = true;
-
-            if (
-                playerClass == PlayerClass::Fighter &&
-                !isPunching
-            ) {
-                comboStep++;
-
-                if (comboStep > 3) {
-                    comboStep = 1;
-                }
-
-                isPunching = true;
-                punchHasHit = false;
-
-                if (comboStep == 3) {
-                    punchTimer = 0.10f;
-                }
-                else {
-                    punchTimer = 0.15f;
-                }
-
-                comboTimer = comboWindow;
-
-                SDL_Log(
-                    "Combo step: %d",
-                    comboStep
-                );
-            }
-            else if (
-                playerClass == PlayerClass::SwordUser &&
-                !isSwinging &&
-                !swordOnCooldown
-            ) {
-                swordComboStep++;
-
-                if (swordComboStep > 4) {
-                    swordComboStep = 1;
-                }
-
-                swordAttackId++;
-
-                isSwinging = true;
-                swingTimer = swingDuration;
-                swordComboTimer = swordComboWindow;
-
-                SDL_Log(
-                    "Sword combo: %d",
-                    swordComboStep
-                );
-
-                if (swordComboStep == 4) {
-                    swordOnCooldown = true;
-                    swordCooldownTimer =
-                        swordCooldownDuration;
-                }
-            }
-            else if (
-                playerClass == PlayerClass::Cannon &&
-                cannonFireTimer <= 0.0f &&
-                !cannonCharging
-            ) {
-                cannonCharging = true;
-                cannonChargeTimer =
-                    cannonChargeDuration;
-            }
-            else if (
-                playerClass == PlayerClass::Mage &&
-                !mageCharging &&
-                mageShotsRemaining <= 0 &&
-                mageCooldownTimer <= 0.0f
-            ) {
-                mageCharging = true;
-                mageChargeTimer =
-                    mageChargeDuration;
-            }
-        }
-
-        if (
-            playerClass == PlayerClass::Blaster &&
-            event.key.scancode ==
-                SDL_SCANCODE_SPACE
-        ) {
-            blasterFireHeld = true;
-        }
+            break;
+        default:
+            break;
     }
+}
 
-    if (event.type == SDL_EVENT_KEY_UP) {
-        if (
-            event.key.scancode ==
-            SDL_SCANCODE_SPACE
-        ) {
-            attackKeyHeld = false;
-            blasterFireHeld = false;
-        }
+void Player::handleAttackInput() {
+    switch (playerClass) {
+        case PlayerClass::Fighter:   startFighterAttack(); break;
+        case PlayerClass::SwordUser: startSwordAttack(); break;
+        case PlayerClass::Cannon:    startCannonAttack(); break;
+        case PlayerClass::Mage:      startMageAttack(); break;
+        case PlayerClass::Blaster:
+        case PlayerClass::None:
+            break;
     }
+}
+
+void Player::startFighterAttack() {
+    if (isPunching) return;
+
+    ++comboStep;
+    if (comboStep > 3) comboStep = 1;
+
+    isPunching = true;
+    punchHasHit = false;
+    punchTimer = (comboStep == 3) ? kPunchFinisherDuration : kPunchDuration;
+    comboTimer = comboWindow;
+    SDL_Log("Combo step: %d", comboStep);
+}
+
+void Player::startSwordAttack() {
+    if (isSwinging || swordOnCooldown) return;
+
+    ++swordComboStep;
+    if (swordComboStep > 4) swordComboStep = 1;
+
+    ++swordAttackId;
+    isSwinging = true;
+    swingTimer = swingDuration;
+    swordComboTimer = swordComboWindow;
+    SDL_Log("Sword combo: %d", swordComboStep);
+
+    if (swordComboStep == 4) {
+        swordOnCooldown = true;
+        swordCooldownTimer = swordCooldownDuration;
+    }
+}
+
+void Player::startCannonAttack() {
+    if (cannonFireTimer > 0.0f || cannonCharging) return;
+    cannonCharging = true;
+    cannonChargeTimer = cannonChargeDuration;
+}
+
+void Player::startMageAttack() {
+    if (mageCharging || mageShotsRemaining > 0 || mageCooldownTimer > 0.0f) {
+        return;
+    }
+    mageCharging = true;
+    mageChargeTimer = mageChargeDuration;
 }
 
 bool Player::isPunchActive() const {
@@ -411,7 +260,7 @@ SDL_FRect Player::getPunchBounds() const {
     }
 
     float centerOffset =
-        (50.0f - size) / 2.0f;
+        (kPlayerSize - size) / 2.0f;
 
     float handOffset = 0.0f;
 
@@ -436,7 +285,7 @@ SDL_FRect Player::getPunchBounds() const {
             return {
                 x + centerOffset -
                     handOffset,
-                y + 50.0f,
+                y + kPlayerSize,
                 size,
                 size
             };
@@ -452,7 +301,7 @@ SDL_FRect Player::getPunchBounds() const {
 
         case Direction::Right:
             return {
-                x + 50.0f,
+                x + kPlayerSize,
                 y + centerOffset +
                     handOffset,
                 size,
@@ -501,7 +350,7 @@ SDL_FRect Player::getSwordBounds() const {
             case Direction::Down:
                 return {
                     x - 20.0f,
-                    y + 50.0f,
+                    y + kPlayerSize,
                     finisherWidth,
                     finisherDepth
                 };
@@ -516,7 +365,7 @@ SDL_FRect Player::getSwordBounds() const {
 
             case Direction::Right:
                 return {
-                    x + 50.0f,
+                    x + kPlayerSize,
                     y - 20.0f,
                     finisherDepth,
                     finisherWidth
@@ -536,7 +385,7 @@ SDL_FRect Player::getSwordBounds() const {
         case Direction::Down:
             return {
                 x - 10.0f - swingOffset,
-                y + 50.0f,
+                y + kPlayerSize,
                 width,
                 depth
             };
@@ -551,7 +400,7 @@ SDL_FRect Player::getSwordBounds() const {
 
         case Direction::Right:
             return {
-                x + 50.0f,
+                x + kPlayerSize,
                 y - 10.0f + swingOffset,
                 depth,
                 width
@@ -565,8 +414,8 @@ SDL_FRect Player::getBounds() const {
     return {
         x,
         y,
-        50.0f,
-        50.0f
+        kPlayerSize,
+        kPlayerSize
     };
 }
 
@@ -593,8 +442,8 @@ void Player::moveX(float amount) {
         x = 0.0f;
     }
 
-    if (x > 750.0f) {
-        x = 750.0f;
+    if (x > kArenaWidth - kPlayerSize) {
+        x = kArenaWidth - kPlayerSize;
     }
 }
 
@@ -605,8 +454,8 @@ void Player::moveY(float amount) {
         y = 0.0f;
     }
 
-    if (y > 550.0f) {
-        y = 550.0f;
+    if (y > kArenaHeight - kPlayerSize) {
+        y = kArenaHeight - kPlayerSize;
     }
 }
 
@@ -666,19 +515,52 @@ PlayerClass Player::getPlayerClass() const {
     return playerClass;
 }
 
-void Player::setPlayerClass(
-    PlayerClass newClass
-) {
+
+void Player::setPlayerClass(PlayerClass newClass) {
+    if (playerClass == newClass) {
+        return;
+    }
+
+    isPunching = false;
+    punchTimer = 0.0f;
+    punchHasHit = false;
+    comboStep = 0;
+    comboTimer = 0.0f;
+
+    isSwinging = false;
+    swingTimer = 0.0f;
+    swordComboStep = 0;
+    swordComboTimer = 0.0f;
+    swordOnCooldown = false;
+    swordCooldownTimer = 0.0f;
+
+    wantsToFire = false;
+    blasterFireHeld = false;
+    blasterFireTimer = 0.0f;
+
+    wantsToFireCannon = false;
+    cannonCharging = false;
+    cannonChargeTimer = 0.0f;
+    cannonFireTimer = 0.0f;
+
+    wantsToFireMage = false;
+    mageCharging = false;
+    mageChargeTimer = 0.0f;
+    mageShotsRemaining = 0;
+    mageBurstTimer = 0.0f;
+    mageCooldownTimer = 0.0f;
+    mageCurrentShotNumber = 0;
+    mageStatusShot = 0;
+
     playerClass = newClass;
 }
+
 
 bool Player::isSwordSwingActive() const {
     return isSwinging;
 }
 
-void Player::renderSword(
-    SDL_Renderer* renderer
-) {
+void Player::renderSword(SDL_Renderer* renderer) const {
     if (!isSwinging) {
         return;
     }
@@ -724,175 +606,37 @@ void Player::clearWantsToFireCannon() {
     wantsToFireCannon = false;
 }
 
-void Player::renderCannonCharge(
-    SDL_Renderer* renderer
-) {
+void Player::renderCannonCharge(SDL_Renderer* renderer) const {
     if (!cannonCharging) {
         return;
     }
 
-    float chargeProgress =
-        1.0f -
-        (cannonChargeTimer /
-         cannonChargeDuration);
+    float progress = 1.0f -
+        (cannonChargeTimer / cannonChargeDuration);
 
-    float minSize = 10.0f;
-    float maxSize = 35.0f;
-
-    float currentSize =
-        minSize +
-        (maxSize - minSize) *
-        chargeProgress;
-
-    float chargeX = x;
-    float chargeY = y;
-
-    switch (facing) {
-        case Direction::Up:
-            chargeX =
-                x +
-                (50.0f - currentSize) /
-                2.0f;
-
-            chargeY =
-                y - currentSize;
-            break;
-
-        case Direction::Down:
-            chargeX =
-                x +
-                (50.0f - currentSize) /
-                2.0f;
-
-            chargeY =
-                y + 50.0f;
-            break;
-
-        case Direction::Left:
-            chargeX =
-                x - currentSize;
-
-            chargeY =
-                y +
-                (50.0f - currentSize) /
-                2.0f;
-            break;
-
-        case Direction::Right:
-            chargeX =
-                x + 50.0f;
-
-            chargeY =
-                y +
-                (50.0f - currentSize) /
-                2.0f;
-            break;
-    }
-
-    SDL_FRect chargeRect = {
-        chargeX,
-        chargeY,
-        currentSize,
-        currentSize
-    };
-
-    SDL_SetRenderDrawColor(
+    renderChargeEffect(
         renderer,
-        0,
-        255,
-        255,
-        255
-    );
-
-    SDL_RenderFillRect(
-        renderer,
-        &chargeRect
+        progress,
+        10.0f,
+        35.0f,
+        0, 255, 255
     );
 }
 
-void Player::renderMageCharge(
-    SDL_Renderer* renderer
-) {
+void Player::renderMageCharge(SDL_Renderer* renderer) const {
     if (!mageCharging) {
         return;
     }
 
-    float chargeProgress =
-        1.0f -
-        (mageChargeTimer /
-         mageChargeDuration);
+    float progress = 1.0f -
+        (mageChargeTimer / mageChargeDuration);
 
-    float minSize = 6.0f;
-    float maxSize = 18.0f;
-
-    float currentSize =
-        minSize +
-        (maxSize - minSize) *
-        chargeProgress;
-
-    float chargeX = x;
-    float chargeY = y;
-
-    switch (facing) {
-        case Direction::Up:
-            chargeX =
-                x +
-                (50.0f - currentSize) /
-                2.0f;
-
-            chargeY =
-                y - currentSize;
-            break;
-
-        case Direction::Down:
-            chargeX =
-                x +
-                (50.0f - currentSize) /
-                2.0f;
-
-            chargeY =
-                y + 50.0f;
-            break;
-
-        case Direction::Left:
-            chargeX =
-                x - currentSize;
-
-            chargeY =
-                y +
-                (50.0f - currentSize) /
-                2.0f;
-            break;
-
-        case Direction::Right:
-            chargeX =
-                x + 50.0f;
-
-            chargeY =
-                y +
-                (50.0f - currentSize) /
-                2.0f;
-            break;
-    }
-
-    SDL_FRect chargeRect = {
-        chargeX,
-        chargeY,
-        currentSize,
-        currentSize
-    };
-
-    SDL_SetRenderDrawColor(
+    renderChargeEffect(
         renderer,
-        180,
-        0,
-        255,
-        255
-    );
-
-    SDL_RenderFillRect(
-        renderer,
-        &chargeRect
+        progress,
+        6.0f,
+        18.0f,
+        180, 0, 255
     );
 }
 
@@ -910,4 +654,220 @@ int Player::getMageCurrentShotNumber() const {
 
 int Player::getMageStatusShot() const {
     return mageStatusShot;
+}
+
+
+void Player::renderChargeEffect(
+    SDL_Renderer* renderer,
+    float progress,
+    float minSize,
+    float maxSize,
+    Uint8 red,
+    Uint8 green,
+    Uint8 blue
+) const {
+    float currentSize =
+        minSize + (maxSize - minSize) * progress;
+
+    float chargeX = x;
+    float chargeY = y;
+
+    switch (facing) {
+        case Direction::Up:
+            chargeX = x + (kPlayerSize - currentSize) / 2.0f;
+            chargeY = y - currentSize;
+            break;
+
+        case Direction::Down:
+            chargeX = x + (kPlayerSize - currentSize) / 2.0f;
+            chargeY = y + kPlayerSize;
+            break;
+
+        case Direction::Left:
+            chargeX = x - currentSize;
+            chargeY = y + (kPlayerSize - currentSize) / 2.0f;
+            break;
+
+        case Direction::Right:
+            chargeX = x + kPlayerSize;
+            chargeY = y + (kPlayerSize - currentSize) / 2.0f;
+            break;
+    }
+
+    SDL_FRect chargeRect = {
+        chargeX,
+        chargeY,
+        currentSize,
+        currentSize
+    };
+
+    SDL_SetRenderDrawColor(
+        renderer,
+        red,
+        green,
+        blue,
+        255
+    );
+
+    SDL_RenderFillRect(renderer, &chargeRect);
+}
+
+void Player::updateFighter(float deltaTime) {
+    if (isPunching) {
+        punchTimer -= deltaTime;
+
+        if (punchTimer <= 0.0f) {
+            isPunching = false;
+            punchTimer = 0.0f;
+        }
+    }
+
+    if (comboTimer > 0.0f) {
+        comboTimer -= deltaTime;
+
+        if (comboTimer <= 0.0f) {
+            comboTimer = 0.0f;
+            comboStep = 0;
+        }
+    }
+}
+
+void Player::updateSword(float deltaTime) {
+    if (isSwinging) {
+        swingTimer -= deltaTime;
+
+        if (swingTimer <= 0.0f) {
+            isSwinging = false;
+            swingTimer = 0.0f;
+        }
+    }
+
+    if (swordComboTimer > 0.0f) {
+        swordComboTimer -= deltaTime;
+
+        if (swordComboTimer <= 0.0f) {
+            swordComboTimer = 0.0f;
+            swordComboStep = 0;
+        }
+    }
+
+    if (swordOnCooldown) {
+        swordCooldownTimer -= deltaTime;
+
+        if (swordCooldownTimer <= 0.0f) {
+            swordCooldownTimer = 0.0f;
+            swordOnCooldown = false;
+
+            SDL_Log("Sword ready!");
+        }
+    }
+}
+
+void Player::updateBlaster(float deltaTime) {
+    if (blasterFireTimer > 0.0f) {
+        blasterFireTimer -= deltaTime;
+
+        if (blasterFireTimer < 0.0f) {
+            blasterFireTimer = 0.0f;
+        }
+    }
+
+    if (
+        playerClass == PlayerClass::Blaster &&
+        blasterFireHeld &&
+        blasterFireTimer <= 0.0f
+    ) {
+        wantsToFire = true;
+        blasterFireTimer = blasterFireRate;
+    }
+}
+
+void Player::updateCannon(float deltaTime) {
+    if (cannonFireTimer > 0.0f) {
+        cannonFireTimer -= deltaTime;
+
+        if (cannonFireTimer < 0.0f) {
+            cannonFireTimer = 0.0f;
+        }
+    }
+
+    if (cannonCharging) {
+        cannonChargeTimer -= deltaTime;
+
+        if (cannonChargeTimer <= 0.0f) {
+            cannonChargeTimer = 0.0f;
+            cannonCharging = false;
+
+            wantsToFireCannon = true;
+            cannonFireTimer = cannonFireCooldown;
+        }
+    }
+}
+
+
+void Player::updateMage(float deltaTime) {
+   if (mageCooldownTimer > 0.0f) {
+        mageCooldownTimer -= deltaTime;
+
+        if (mageCooldownTimer < 0.0f) {
+            mageCooldownTimer = 0.0f;
+        }
+    }
+
+    if (mageCharging) {
+        mageChargeTimer -= deltaTime;
+
+        if (mageChargeTimer <= 0.0f) {
+            mageChargeTimer = 0.0f;
+            mageCharging = false;
+
+            mageShotsRemaining = 3;
+            mageBurstTimer = 0.0f;
+
+            mageCurrentShotNumber = 0;
+            mageStatusShot = 0;
+
+            static std::random_device randomDevice;
+            static std::mt19937 randomGenerator(
+                randomDevice()
+            );
+
+            static std::uniform_int_distribution<int>
+                statusChanceRoll(1, 100);
+
+            int roll = statusChanceRoll(randomGenerator);
+
+            if (roll <= 10) {
+                static std::uniform_int_distribution<int>
+                    statusShotRoll(1, 3);
+
+                mageStatusShot = statusShotRoll(randomGenerator);
+
+                SDL_Log(
+                    "Mage status burst! Special shot: %d",
+                    mageStatusShot
+                );
+            }
+        }
+    }
+
+    if (mageShotsRemaining > 0) {
+        mageBurstTimer -= deltaTime;
+
+        if (
+            mageBurstTimer <= 0.0f &&
+            !wantsToFireMage
+        ) {
+            mageCurrentShotNumber = 4 - mageShotsRemaining;
+
+            wantsToFireMage = true;
+            mageShotsRemaining--;
+
+            mageBurstTimer = mageBurstDelay;
+
+            if (mageShotsRemaining == 0) {
+                mageCooldownTimer = mageCooldownDuration;
+            }
+        }
+    }
 }

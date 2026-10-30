@@ -1,27 +1,17 @@
 #include "Game.h"
-#include <cmath>
-#include <random>
 
-Game::Game()
-    : window(nullptr),
-      renderer(nullptr),
-      running(false),
-      gameOver(false)
-{
+#include <algorithm>
+#include <cmath>
+
+Game::Game() {
     enemies.emplace_back(550.0f, 275.0f);
     enemies.emplace_back(150.0f, 150.0f);
     enemies.emplace_back(600.0f, 450.0f);
 }
 
 Game::~Game() {
-    if (renderer) {
-        SDL_DestroyRenderer(renderer);
-    }
-
-    if (window) {
-        SDL_DestroyWindow(window);
-    }
-
+    if (renderer) SDL_DestroyRenderer(renderer);
+    if (window) SDL_DestroyWindow(window);
     SDL_Quit();
 }
 
@@ -31,20 +21,13 @@ bool Game::initialize() {
         return false;
     }
 
-    window = SDL_CreateWindow(
-        "Dungeon Clearer",
-        800,
-        600,
-        0
-    );
-
+    window = SDL_CreateWindow("Dungeon Clearer", kWindowWidth, kWindowHeight, 0);
     if (!window) {
         SDL_Log("SDL_CreateWindow failed: %s", SDL_GetError());
         return false;
     }
 
     renderer = SDL_CreateRenderer(window, nullptr);
-
     if (!renderer) {
         SDL_Log("SDL_CreateRenderer failed: %s", SDL_GetError());
         return false;
@@ -56,16 +39,13 @@ bool Game::initialize() {
 
 void Game::run() {
     Uint64 previousTime = SDL_GetTicks();
-
     while (running) {
-        Uint64 currentTime = SDL_GetTicks();
-
-        float deltaTime =
-            (currentTime - previousTime) / 1000.0f;
-
+        const Uint64 currentTime = SDL_GetTicks();
+        // CHANGE: Cap large frame jumps (e.g. dragging the window) to reduce tunneling.
+        const float deltaTime = std::min((currentTime - previousTime) / 1000.0f, 0.05f);
         previousTime = currentTime;
-
         processInput();
+        if (!running) break;
         update(deltaTime);
         render();
     }
@@ -73,808 +53,273 @@ void Game::run() {
 
 void Game::processInput() {
     SDL_Event event;
-
     while (SDL_PollEvent(&event)) {
         if (event.type == SDL_EVENT_QUIT) {
             running = false;
+            continue;
         }
-
-        player.handleEvent(event);
+        if (!gameOver) player.handleEvent(event);
     }
 }
 
 void Game::update(float deltaTime) {
-    if (gameOver) {
-        return;
-    }
-
+    if (gameOver) return;
     player.update(deltaTime);
+    updatePlayerMovement(deltaTime);
+    updateEnemies(deltaTime);
+    if (gameOver) return;
+    updateMeleeAttacks();
+    spawnProjectiles();
+    updateProjectiles(deltaTime);
+}
 
-    const bool* keyboard =
-        SDL_GetKeyboardState(nullptr);
-
-    float moveX = 0.0f;
-    float moveY = 0.0f;
-
-    if (keyboard[SDL_SCANCODE_W]) {
-        moveY -= player.getSpeed() * deltaTime;
-        player.setFacing(Direction::Up);
+bool Game::intersectsLivingEnemy(const SDL_FRect& bounds, const Enemy* ignored) const {
+    for (const Enemy& enemy : enemies) {
+        if (&enemy == ignored || !enemy.isAlive()) continue;
+        const SDL_FRect other = enemy.getBounds();
+        if (SDL_HasRectIntersectionFloat(&bounds, &other)) return true;
     }
+    return false;
+}
 
-    if (keyboard[SDL_SCANCODE_S]) {
-        moveY += player.getSpeed() * deltaTime;
-        player.setFacing(Direction::Down);
+bool Game::intersectsPlayer(const SDL_FRect& bounds) const {
+    const SDL_FRect playerBounds = player.getBounds();
+    return SDL_HasRectIntersectionFloat(&bounds, &playerBounds);
+}
+
+void Game::applyContactDamage() {
+    player.takeDamage(kContactDamage);
+    if (!player.isAlive()) {
+        gameOver = true;
+        SDL_Log("GAME OVER");
     }
+}
 
-    if (keyboard[SDL_SCANCODE_A]) {
-        moveX -= player.getSpeed() * deltaTime;
-        player.setFacing(Direction::Left);
-    }
+void Game::updatePlayerMovement(float deltaTime) {
+    const bool* keys = SDL_GetKeyboardState(nullptr);
+    float dx = 0.0f;
+    float dy = 0.0f;
+    const float step = player.getSpeed() * deltaTime;
 
-    if (keyboard[SDL_SCANCODE_D]) {
-        moveX += player.getSpeed() * deltaTime;
-        player.setFacing(Direction::Right);
-    }
+    // Preserve the original facing priority: D > A > S > W.
+    if (keys[SDL_SCANCODE_W]) { dy -= step; player.setFacing(Direction::Up); }
+    if (keys[SDL_SCANCODE_S]) { dy += step; player.setFacing(Direction::Down); }
+    if (keys[SDL_SCANCODE_A]) { dx -= step; player.setFacing(Direction::Left); }
+    if (keys[SDL_SCANCODE_D]) { dx += step; player.setFacing(Direction::Right); }
 
-    float oldX =
-        player.getX();
+    const float oldX = player.getX();
+    player.moveX(dx);
+    if (intersectsLivingEnemy(player.getBounds())) player.setPosition(oldX, player.getY());
 
-    player.moveX(moveX);
+    const float oldY = player.getY();
+    player.moveY(dy);
+    if (intersectsLivingEnemy(player.getBounds())) player.setPosition(player.getX(), oldY);
+}
 
-    SDL_FRect playerBounds =
-        player.getBounds();
-
-    bool collidedOnX =
-        false;
-
+void Game::updateEnemies(float deltaTime) {
     for (Enemy& enemy : enemies) {
-        if (!enemy.isAlive()) {
-            continue;
+        if (!enemy.isAlive()) continue;
+        enemy.update(deltaTime);
+        if (!enemy.isAlive()) continue;
+
+        float dx = player.getX() - enemy.getX();
+        float dy = player.getY() - enemy.getY();
+        const float distance = std::sqrt(dx * dx + dy * dy);
+        if (distance <= 0.0f) continue;
+
+        const float movement = enemy.getSpeed() * deltaTime;
+        dx = dx / distance * movement;
+        dy = dy / distance * movement;
+
+        // CHANGE: Shared collision checks replace duplicated X/Y loops.
+        const float oldX = enemy.getX();
+        enemy.moveX(dx);
+        SDL_FRect bounds = enemy.getBounds();
+        const bool hitPlayerX = intersectsPlayer(bounds);
+        if (hitPlayerX) applyContactDamage();
+        if (gameOver) return;
+        if (hitPlayerX || intersectsLivingEnemy(bounds, &enemy))
+            enemy.setPosition(oldX, enemy.getY());
+
+        const float oldY = enemy.getY();
+        enemy.moveY(dy);
+        bounds = enemy.getBounds();
+        const bool hitPlayerY = intersectsPlayer(bounds);
+        if (hitPlayerY) applyContactDamage();
+        if (gameOver) return;
+        if (hitPlayerY || intersectsLivingEnemy(bounds, &enemy))
+            enemy.setPosition(enemy.getX(), oldY);
+    }
+}
+
+void Game::applyKnockback(Enemy& enemy, Direction direction, float distance) {
+    // CHANGE/BUG FIX: Advance in small increments and stop at the first obstacle.
+    // The old 20-pixel teleport could place one enemy inside another indefinitely.
+    float dx = 0.0f;
+    float dy = 0.0f;
+    switch (direction) {
+        case Direction::Up: dy = -1.0f; break;
+        case Direction::Down: dy = 1.0f; break;
+        case Direction::Left: dx = -1.0f; break;
+        case Direction::Right: dx = 1.0f; break;
+    }
+    float remaining = distance;
+    while (remaining > 0.0f) {
+        const float step = std::min(remaining, 1.0f);
+        const float oldX = enemy.getX();
+        const float oldY = enemy.getY();
+        enemy.moveX(dx * step);
+        enemy.moveY(dy * step);
+        const SDL_FRect bounds = enemy.getBounds();
+        if (intersectsLivingEnemy(bounds, &enemy) || intersectsPlayer(bounds)) {
+            enemy.setPosition(oldX, oldY);
+            break;
         }
+        // Enemy::moveX/moveY may clamp at the arena boundary.
+        if (enemy.getX() == oldX && enemy.getY() == oldY) break;
+        remaining -= step;
+    }
+}
 
-        SDL_FRect enemyBounds =
-            enemy.getBounds();
+void Game::updateMeleeAttacks() {
+    if (player.isPunchActive() && !player.hasPunchHit()) {
+        const SDL_FRect punch = player.getPunchBounds();
+        for (Enemy& enemy : enemies) {
+            if (!enemy.isAlive()) continue;
+            const SDL_FRect bounds = enemy.getBounds();
+            if (!SDL_HasRectIntersectionFloat(&punch, &bounds)) continue;
 
-        if (
-            SDL_HasRectIntersectionFloat(
-                &playerBounds,
-                &enemyBounds
-            )
-        ) {
-            collidedOnX = true;
+            const bool finisher = player.getComboStep() == 3;
+            enemy.takeDamage(finisher ? 15 : 10);
+            if (finisher && enemy.isAlive())
+                applyKnockback(enemy, player.getFacing(), kKnockbackDistance);
+            player.markPunchHit();
             break;
         }
     }
 
-    if (collidedOnX) {
-        player.setPosition(
-            oldX,
-            player.getY()
-        );
-    }
-
-    float oldY =
-        player.getY();
-
-    player.moveY(moveY);
-
-    playerBounds =
-        player.getBounds();
-
-    bool collidedOnY =
-        false;
-
-    for (Enemy& enemy : enemies) {
-        if (!enemy.isAlive()) {
-            continue;
-        }
-
-        SDL_FRect enemyBounds =
-            enemy.getBounds();
-
-        if (
-            SDL_HasRectIntersectionFloat(
-                &playerBounds,
-                &enemyBounds
-            )
-        ) {
-            collidedOnY = true;
-            break;
-        }
-    }
-
-    if (collidedOnY) {
-        player.setPosition(
-            player.getX(),
-            oldY
-        );
-    }
-
-    for (Enemy& enemy : enemies) {
-        if (!enemy.isAlive()) {
-            continue;
-        }
-
-        enemy.update(
-            deltaTime,
-            player.getX(),
-            player.getY()
-        );
-
-        if (!enemy.isAlive()) {
-            continue;
-        }
-
-        float directionX =
-            player.getX() -
-            enemy.getX();
-
-        float directionY =
-            player.getY() -
-            enemy.getY();
-
-        float length =
-            std::sqrt(
-                directionX * directionX +
-                directionY * directionY
-            );
-
-        float enemyMoveX = 0.0f;
-        float enemyMoveY = 0.0f;
-
-        if (length > 0.0f) {
-            directionX /= length;
-            directionY /= length;
-
-            enemyMoveX =
-                directionX *
-                enemy.getSpeed() *
-                deltaTime;
-
-            enemyMoveY =
-                directionY *
-                enemy.getSpeed() *
-                deltaTime;
-        }
-
-        SDL_FRect currentPlayerBounds =
-            player.getBounds();
-
-        float oldEnemyX =
-            enemy.getX();
-
-        enemy.moveX(enemyMoveX);
-
-        SDL_FRect enemyBounds =
-            enemy.getBounds();
-
-        bool collidedWithEnemyOnX =
-            false;
-
-        for (Enemy& otherEnemy : enemies) {
-            if (&otherEnemy == &enemy) {
-                continue;
-            }
-
-            if (!otherEnemy.isAlive()) {
-                continue;
-            }
-
-            SDL_FRect otherBounds =
-                otherEnemy.getBounds();
-
-            if (
-                SDL_HasRectIntersectionFloat(
-                    &enemyBounds,
-                    &otherBounds
-                )
-            ) {
-                collidedWithEnemyOnX =
-                    true;
-
-                break;
-            }
-        }
-
-        bool collidedWithPlayerOnX =
-            SDL_HasRectIntersectionFloat(
-                &enemyBounds,
-                &currentPlayerBounds
-            );
-
-        if (collidedWithPlayerOnX) {
-            player.takeDamage(10);
-        }
-
-        if (!player.isAlive()) {
-            gameOver = true;
-            SDL_Log("GAME OVER");
-            return;
-        }
-
-        if (
-            collidedWithPlayerOnX ||
-            collidedWithEnemyOnX
-        ) {
-            enemy.setPosition(
-                oldEnemyX,
-                enemy.getY()
-            );
-        }
-
-        float oldEnemyY =
-            enemy.getY();
-
-        enemy.moveY(enemyMoveY);
-
-        enemyBounds =
-            enemy.getBounds();
-
-        bool collidedWithEnemyOnY =
-            false;
-
-        for (Enemy& otherEnemy : enemies) {
-            if (&otherEnemy == &enemy) {
-                continue;
-            }
-
-            if (!otherEnemy.isAlive()) {
-                continue;
-            }
-
-            SDL_FRect otherBounds =
-                otherEnemy.getBounds();
-
-            if (
-                SDL_HasRectIntersectionFloat(
-                    &enemyBounds,
-                    &otherBounds
-                )
-            ) {
-                collidedWithEnemyOnY =
-                    true;
-
-                break;
-            }
-        }
-
-        bool collidedWithPlayerOnY =
-            SDL_HasRectIntersectionFloat(
-                &enemyBounds,
-                &currentPlayerBounds
-            );
-
-        if (collidedWithPlayerOnY) {
-            player.takeDamage(10);
-        }
-
-        if (!player.isAlive()) {
-            gameOver = true;
-            SDL_Log("GAME OVER");
-            return;
-        }
-
-        if (
-            collidedWithPlayerOnY ||
-            collidedWithEnemyOnY
-        ) {
-            enemy.setPosition(
-                enemy.getX(),
-                oldEnemyY
-            );
-        }
-    }
-
-    for (Enemy& enemy : enemies) {
-        enemy.setHit(false);
-    }
-
-    if (
-        player.isPunchActive() &&
-        !player.hasPunchHit()
-    ) {
-        SDL_FRect punchBounds =
-            player.getPunchBounds();
-
+    if (player.isSwordSwingActive()) {
+        const SDL_FRect sword = player.getSwordBounds();
         for (Enemy& enemy : enemies) {
-            if (!enemy.isAlive()) {
-                continue;
+            if (!enemy.isAlive()) continue;
+            const SDL_FRect bounds = enemy.getBounds();
+            if (!SDL_HasRectIntersectionFloat(&sword, &bounds)) continue;
+            if (enemy.getLastSwordAttackHit() == player.getSwordAttackId()) continue;
+
+            int damage = 20;
+            switch (player.getSwordComboStep()) {
+                case 3: damage = 15; break;
+                case 4: damage = 30; break;
+                default: break;
             }
-
-            SDL_FRect enemyBounds =
-                enemy.getBounds();
-
-            if (
-                SDL_HasRectIntersectionFloat(
-                    &punchBounds,
-                    &enemyBounds
-                )
-            ) {
-                enemy.setHit(true);
-
-                int damage = 10;
-
-                if (
-                    player.getComboStep() == 3
-                ) {
-                    damage = 15;
-                }
-
-                enemy.takeDamage(damage);
-
-                if (
-                    player.getComboStep() == 3
-                ) {
-                    float knockbackDistance =
-                        20.0f;
-
-                    switch (
-                        player.getFacing()
-                    ) {
-                        case Direction::Up:
-                            enemy.moveY(
-                                -knockbackDistance
-                            );
-                            break;
-
-                        case Direction::Down:
-                            enemy.moveY(
-                                knockbackDistance
-                            );
-                            break;
-
-                        case Direction::Left:
-                            enemy.moveX(
-                                -knockbackDistance
-                            );
-                            break;
-
-                        case Direction::Right:
-                            enemy.moveX(
-                                knockbackDistance
-                            );
-                            break;
-                    }
-                }
-
-                player.markPunchHit();
-
-                break;
-            }
-        }
-    }
-
-    if (
-        player.isSwordSwingActive()
-    ) {
-        SDL_FRect swordBounds =
-            player.getSwordBounds();
-
-        for (Enemy& enemy : enemies) {
-            if (!enemy.isAlive()) {
-                continue;
-            }
-
-            SDL_FRect enemyBounds =
-                enemy.getBounds();
-
-            if (
-                SDL_HasRectIntersectionFloat(
-                    &swordBounds,
-                    &enemyBounds
-                )
-            ) {
-                if (
-                    enemy.getLastSwordAttackHit() !=
-                    player.getSwordAttackId()
-                ) {
-                    int swordDamage = 20;
-
-                    switch (
-                        player.getSwordComboStep()
-                    ) {
-                        case 1:
-                            swordDamage = 20;
-                            break;
-
-                        case 2:
-                            swordDamage = 20;
-                            break;
-
-                        case 3:
-                            swordDamage = 15;
-                            break;
-
-                        case 4:
-                            swordDamage = 30;
-                            break;
-
-                        default:
-                            swordDamage = 20;
-                            break;
-                    }
-
-                    enemy.takeDamage(
-                        swordDamage
-                    );
-
-                    enemy.setLastSwordAttackHit(
-                        player.getSwordAttackId()
-                    );
-                }
-            }
-        }
-    }
-
-    if (
-        player.getWantsToFire()
-    ) {
-        float projectileSpeed =
-            500.0f;
-
-        float velocityX = 0.0f;
-        float velocityY = 0.0f;
-
-        switch (
-            player.getFacing()
-        ) {
-            case Direction::Up:
-                velocityY =
-                    -projectileSpeed;
-                break;
-
-            case Direction::Down:
-                velocityY =
-                    projectileSpeed;
-                break;
-
-            case Direction::Left:
-                velocityX =
-                    -projectileSpeed;
-                break;
-
-            case Direction::Right:
-                velocityX =
-                    projectileSpeed;
-                break;
-        }
-
-        projectiles.emplace_back(
-            player.getX() + 20.0f,
-            player.getY() + 20.0f,
-            velocityX,
-            velocityY,
-            10.0f,
-            10.0f,
-            5,
-            ProjectileType::Blaster
-        );
-
-        player.clearWantsToFire();
-    }
-
-    if (
-        player.getWantsToFireCannon()
-    ) {
-        float projectileSpeed =
-            300.0f;
-
-        float projectileSize =
-            35.0f;
-
-        float velocityX = 0.0f;
-        float velocityY = 0.0f;
-
-        float projectileX =
-            player.getX();
-
-        float projectileY =
-            player.getY();
-
-        switch (
-            player.getFacing()
-        ) {
-            case Direction::Up:
-                velocityY =
-                    -projectileSpeed;
-
-                projectileX =
-                    player.getX() +
-                    (50.0f - projectileSize) /
-                    2.0f;
-
-                projectileY =
-                    player.getY() -
-                    projectileSize;
-
-                break;
-
-            case Direction::Down:
-                velocityY =
-                    projectileSpeed;
-
-                projectileX =
-                    player.getX() +
-                    (50.0f - projectileSize) /
-                    2.0f;
-
-                projectileY =
-                    player.getY() +
-                    50.0f;
-
-                break;
-
-            case Direction::Left:
-                velocityX =
-                    -projectileSpeed;
-
-                projectileX =
-                    player.getX() -
-                    projectileSize;
-
-                projectileY =
-                    player.getY() +
-                    (50.0f - projectileSize) /
-                    2.0f;
-
-                break;
-
-            case Direction::Right:
-                velocityX =
-                    projectileSpeed;
-
-                projectileX =
-                    player.getX() +
-                    50.0f;
-
-                projectileY =
-                    player.getY() +
-                    (50.0f - projectileSize) /
-                    2.0f;
-
-                break;
-        }
-
-        projectiles.emplace_back(
-            projectileX,
-            projectileY,
-            velocityX,
-            velocityY,
-            projectileSize,
-            projectileSize,
-            40,
-            ProjectileType::Cannon
-        );
-
-        player.clearWantsToFireCannon();
-    }
-
-    if (
-        player.getWantsToFireMage()
-    ) {
-        float projectileSpeed =
-            400.0f;
-
-        float projectileSize =
-            18.0f;
-
-        float velocityX = 0.0f;
-        float velocityY = 0.0f;
-
-        switch (
-            player.getFacing()
-        ) {
-            case Direction::Up:
-                velocityY =
-                    -projectileSpeed;
-                break;
-
-            case Direction::Down:
-                velocityY =
-                    projectileSpeed;
-                break;
-
-            case Direction::Left:
-                velocityX =
-                    -projectileSpeed;
-                break;
-
-            case Direction::Right:
-                velocityX =
-                    projectileSpeed;
-                break;
-        }
-
-        float projectileX =
-            player.getX() +
-            (50.0f - projectileSize) /
-            2.0f;
-
-        float projectileY =
-            player.getY() +
-            (50.0f - projectileSize) /
-            2.0f;
-
-        projectiles.emplace_back(
-            projectileX,
-            projectileY,
-            velocityX,
-            velocityY,
-            projectileSize,
-            projectileSize,
-            10,
-            ProjectileType::Mage
-        );
-
-        projectiles.back().setMageShotInfo(
-            player.getMageCurrentShotNumber(),
-            player.getMageStatusShot()
-        );
-
-        player.clearWantsToFireMage();
-    }
-
-    auto projectileIt =
-        projectiles.begin();
-
-    while (
-        projectileIt !=
-        projectiles.end()
-    ) {
-        projectileIt->update(
-            deltaTime
-        );
-
-        bool projectileDestroyed =
-            false;
-
-        SDL_FRect projectileBounds =
-            projectileIt->getBounds();
-
-        for (Enemy& enemy : enemies) {
-            if (!enemy.isAlive()) {
-                continue;
-            }
-
-            SDL_FRect enemyBounds =
-                enemy.getBounds();
-
-            if (
-                SDL_HasRectIntersectionFloat(
-                    &projectileBounds,
-                    &enemyBounds
-                )
-            ) {
-                if (
-                    projectileIt->isExplosive()
-                ) {
-                    float explosionSize =
-                        100.0f;
-
-                    float explosionX =
-                        projectileBounds.x +
-                        projectileBounds.w /
-                        2.0f -
-                        explosionSize /
-                        2.0f;
-
-                    float explosionY =
-                        projectileBounds.y +
-                        projectileBounds.h /
-                        2.0f -
-                        explosionSize /
-                        2.0f;
-
-                    SDL_FRect explosionBounds = {
-                        explosionX,
-                        explosionY,
-                        explosionSize,
-                        explosionSize
-                    };
-
-                    for (
-                        Enemy& explosionEnemy :
-                        enemies
-                    ) {
-                        if (
-                            !explosionEnemy.isAlive()
-                        ) {
-                            continue;
-                        }
-
-                        SDL_FRect
-                            explosionEnemyBounds =
-                                explosionEnemy
-                                    .getBounds();
-
-                        if (
-                            SDL_HasRectIntersectionFloat(
-                                &explosionBounds,
-                                &explosionEnemyBounds
-                            )
-                        ) {
-                            explosionEnemy.takeDamage(
-                                projectileIt
-                                    ->getDamage()
-                            );
-                        }
-                    }
-                }
-                else {
-                    enemy.takeDamage(
-                        projectileIt->getDamage()
-                    );
-
-                    if (
-                        projectileIt->getType() ==
-                            ProjectileType::Mage &&
-                        !enemy.hasStatusEffect()
-                    ) {
-                        int shotNumber =
-                            projectileIt
-                                ->getMageShotNumber();
-
-                        int statusShot =
-                            projectileIt
-                                ->getMageStatusShot();
-
-                        if (
-                            statusShot != 0 &&
-                            shotNumber ==
-                                statusShot
-                        ) {
-                            switch (
-                                shotNumber
-                            ) {
-                                case 1:
-                                    enemy.applyBurn();
-                                    break;
-
-                                case 2:
-                                    enemy.applyShock();
-                                    break;
-
-                                case 3:
-                                    enemy.applyFreeze();
-                                    break;
-                            }
-                        }
-                    }
-                }
-
-                projectileIt =
-                    projectiles.erase(
-                        projectileIt
-                    );
-
-                projectileDestroyed =
-                    true;
-
-                break;
-            }
-        }
-
-        if (
-            !projectileDestroyed &&
-            projectileIt->isOffScreen()
-        ) {
-            projectileIt =
-                projectiles.erase(
-                    projectileIt
-                );
-
-            projectileDestroyed =
-                true;
-        }
-
-        if (
-            !projectileDestroyed
-        ) {
-            ++projectileIt;
+            enemy.takeDamage(damage);
+            enemy.setLastSwordAttackHit(player.getSwordAttackId());
         }
     }
 }
 
+void Game::spawnProjectile(ProjectileType type, float speed, float size, int damage, bool atEdge) {
+    const SDL_FRect body = player.getBounds();
+    float x = body.x + (body.w - size) / 2.0f;
+    float y = body.y + (body.h - size) / 2.0f;
+    float vx = 0.0f;
+    float vy = 0.0f;
+
+    switch (player.getFacing()) {
+        case Direction::Up: vy = -speed; if (atEdge) y = body.y - size; break;
+        case Direction::Down: vy = speed; if (atEdge) y = body.y + body.h; break;
+        case Direction::Left: vx = -speed; if (atEdge) x = body.x - size; break;
+        case Direction::Right: vx = speed; if (atEdge) x = body.x + body.w; break;
+    }
+
+    projectiles.emplace_back(x, y, vx, vy, size, size, damage, type);
+}
+
+void Game::spawnProjectiles() {
+    if (player.getWantsToFire()) {
+        // Preserve Blaster's original +20 spawn offset on both axes.
+        const SDL_FRect body = player.getBounds();
+        float vx = 0.0f;
+        float vy = 0.0f;
+        switch (player.getFacing()) {
+            case Direction::Up: vy = -500.0f; break;
+            case Direction::Down: vy = 500.0f; break;
+            case Direction::Left: vx = -500.0f; break;
+            case Direction::Right: vx = 500.0f; break;
+        }
+        projectiles.emplace_back(body.x + 20.0f, body.y + 20.0f,
+                                 vx, vy, 10.0f, 10.0f, 5, ProjectileType::Blaster);
+        player.clearWantsToFire();
+    }
+    if (player.getWantsToFireCannon()) {
+        spawnProjectile(ProjectileType::Cannon, 300.0f, 35.0f, 40, true);
+        player.clearWantsToFireCannon();
+    }
+    if (player.getWantsToFireMage()) {
+        spawnProjectile(ProjectileType::Mage, 400.0f, 18.0f, 10, false);
+        projectiles.back().setMageShotInfo(player.getMageCurrentShotNumber(),
+                                           player.getMageStatusShot());
+        player.clearWantsToFireMage();
+    }
+}
+
+void Game::resolveProjectileHit(const Projectile& projectile, Enemy& target) {
+    if (projectile.isExplosive()) {
+        const SDL_FRect bounds = projectile.getBounds();
+        constexpr float explosionSize = 100.0f;
+        const SDL_FRect explosion = {
+            bounds.x + (bounds.w - explosionSize) / 2.0f,
+            bounds.y + (bounds.h - explosionSize) / 2.0f,
+            explosionSize, explosionSize
+        };
+        for (Enemy& enemy : enemies) {
+            if (!enemy.isAlive()) continue;
+            const SDL_FRect enemyBounds = enemy.getBounds();
+            if (SDL_HasRectIntersectionFloat(&explosion, &enemyBounds))
+                enemy.takeDamage(projectile.getDamage());
+        }
+        return;
+    }
+
+    // CHANGE: Status effects apply only if the enemy had no effect before this hit.
+    const bool canApplyStatus = !target.hasStatusEffect();
+    target.takeDamage(projectile.getDamage());
+    if (projectile.getType() != ProjectileType::Mage || !canApplyStatus || !target.isAlive())
+        return;
+    const int shot = projectile.getMageShotNumber();
+    if (shot == 0 || shot != projectile.getMageStatusShot()) return;
+    switch (shot) {
+        case 1: target.applyBurn(); break;
+        case 2: target.applyShock(); break;
+        case 3: target.applyFreeze(); break;
+        default: break;
+    }
+}
+
+void Game::updateProjectiles(float deltaTime) {
+    auto it = projectiles.begin();
+    while (it != projectiles.end()) {
+        it->update(deltaTime);
+        const SDL_FRect bounds = it->getBounds();
+        bool hit = false;
+        for (Enemy& enemy : enemies) {
+            if (!enemy.isAlive()) continue;
+            const SDL_FRect enemyBounds = enemy.getBounds();
+            if (!SDL_HasRectIntersectionFloat(&bounds, &enemyBounds)) continue;
+            resolveProjectileHit(*it, enemy);
+            hit = true;
+            break;
+        }
+        if (hit || it->isOffScreen(static_cast<float>(kWindowWidth),
+                                   static_cast<float>(kWindowHeight))) {
+            it = projectiles.erase(it);
+        } else {
+            ++it;
+        }
+    }
+}
+
+// Rendering order remains unchanged: player, attacks, enemies, projectiles, overlay.
 void Game::render() {
     SDL_SetRenderDrawColor(
         renderer,

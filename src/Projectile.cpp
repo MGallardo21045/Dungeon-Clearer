@@ -28,50 +28,30 @@ void Projectile::update(float deltaTime) {
     y += velocityY * deltaTime;
 }
 
-void Projectile::render(SDL_Renderer* renderer) {
-    SDL_FRect projectileRect = {
-        x,
-        y,
-        width,
-        height
-    };
+void Projectile::render(SDL_Renderer* renderer) const {
+    SDL_FRect projectileRect = getBounds();
 
     switch (type) {
         case ProjectileType::Blaster:
             SDL_SetRenderDrawColor(
-                renderer,
-                0,
-                255,
-                255,
-                255
+                renderer, 0, 255, 255, 255
             );
             break;
 
         case ProjectileType::Cannon:
             SDL_SetRenderDrawColor(
-                renderer,
-                0,
-                150,
-                255,
-                255
+                renderer, 0, 150, 255, 255
             );
             break;
 
         case ProjectileType::Mage:
             SDL_SetRenderDrawColor(
-                renderer,
-                180,
-                0,
-                255,
-                255
+                renderer, 180, 0, 255, 255
             );
             break;
     }
 
-    SDL_RenderFillRect(
-        renderer,
-        &projectileRect
-    );
+    SDL_RenderFillRect(renderer, &projectileRect);
 }
 
 SDL_FRect Projectile::getBounds() const {
@@ -83,12 +63,15 @@ SDL_FRect Projectile::getBounds() const {
     };
 }
 
-bool Projectile::isOffScreen() const {
+bool Projectile::isOffScreen(
+    float screenWidth,
+    float screenHeight
+) const {
     return (
         x + width < 0.0f ||
-        x > 800.0f ||
+        x > screenWidth ||
         y + height < 0.0f ||
-        y > 600.0f
+        y > screenHeight
     );
 }
 

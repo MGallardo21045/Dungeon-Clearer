@@ -1,11 +1,12 @@
 #include "Enemy.h"
 
+#include <algorithm>
+
 Enemy::Enemy(float startX, float startY)
     : x(startX),
       y(startY),
       width(50.0f),
       height(50.0f),
-      wasHit(false),
       health(50),
       speed(100.0f),
       lastSwordAttackHit(-1),
@@ -13,10 +14,52 @@ Enemy::Enemy(float startX, float startY)
       burnDurationTimer(0.0f),
       burnTickTimer(0.0f),
       shocked(false),
-      shockDurationTimer(0.0f),
       frozen(false),
       freezeDurationTimer(0.0f)
 {
+}
+
+void Enemy::update(float deltaTime) {
+    if (!isAlive()) {
+        return;
+    }
+    hitFlashTimer = std::max(
+        0.0f,
+        hitFlashTimer - deltaTime
+    );
+    if (burning) {
+        const float activeBurnTime = std::min(
+            deltaTime,
+            burnDurationTimer
+        );
+
+        burnDurationTimer -= deltaTime;
+        burnTickTimer -= activeBurnTime;
+
+        while (burnTickTimer <= 0.0f && activeBurnTime > 0.0f) {
+            takeDamage(burnDamage);
+            burnTickTimer += burnTickInterval;
+
+            if (!isAlive()) {
+                return;
+            }
+        }
+
+        if (burnDurationTimer <= 0.0f) {
+            burnDurationTimer = 0.0f;
+            burning = false;
+            SDL_Log("Burn ended");
+        }
+    }
+    if (frozen) {
+        freezeDurationTimer -= deltaTime;
+
+        if (freezeDurationTimer <= 0.0f) {
+            freezeDurationTimer = 0.0f;
+            frozen = false;
+            SDL_Log("Freeze ended");
+        }
+    }
 }
 
 void Enemy::render(SDL_Renderer* renderer) const {
@@ -24,148 +67,43 @@ void Enemy::render(SDL_Renderer* renderer) const {
         return;
     }
 
-    SDL_FRect enemyRect = {
-        x,
-        y,
-        width,
-        height
-    };
-
-    if (wasHit) {
-        SDL_SetRenderDrawColor(
-            renderer,
-            255,
-            255,
-            255,
-            255
-        );
+    if (hitFlashTimer > 0.0f) {
+        SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
     }
     else if (frozen) {
-        SDL_SetRenderDrawColor(
-            renderer,
-            100,
-            200,
-            255,
-            255
-        );
+        SDL_SetRenderDrawColor(renderer, 100, 200, 255, 255);
     }
     else if (burning) {
-        SDL_SetRenderDrawColor(
-            renderer,
-            255,
-            120,
-            0,
-            255
-        );
+        SDL_SetRenderDrawColor(renderer, 255, 120, 0, 255);
     }
     else if (shocked) {
-        SDL_SetRenderDrawColor(
-            renderer,
-            255,
-            255,
-            0,
-            255
-        );
+        SDL_SetRenderDrawColor(renderer, 255, 255, 0, 255);
     }
     else {
-        SDL_SetRenderDrawColor(
-            renderer,
-            255,
-            0,
-            255,
-            255
-        );
+        SDL_SetRenderDrawColor(renderer, 255, 0, 255, 255);
     }
 
-    SDL_RenderFillRect(
-        renderer,
-        &enemyRect
-    );
+    SDL_FRect enemyRect = getBounds();
+    SDL_RenderFillRect(renderer, &enemyRect);
 }
 
 SDL_FRect Enemy::getBounds() const {
-    return {
-        x,
-        y,
-        width,
-        height
-    };
-}
-
-void Enemy::setHit(bool value) {
-    wasHit = value;
+    return { x, y, width, height };
 }
 
 void Enemy::takeDamage(int amount) {
-    health -= amount;
-
-    if (health < 0) {
-        health = 0;
+    if (!isAlive() || amount <= 0) {
+        return;
     }
 
-    SDL_Log(
-        "Enemy health: %d",
-        health
-    );
+    health = std::max(0, health - amount);
+    hitFlashTimer = hitFlashDuration;
+
+    SDL_Log("Enemy health: %d", health);
 }
 
 bool Enemy::isAlive() const {
     return health > 0;
-}
-
-void Enemy::update(
-    float deltaTime,
-    float playerX,
-    float playerY
-) {
-    if (!isAlive()) {
-        return;
-    }
-
-    if (burning) {
-        burnDurationTimer -= deltaTime;
-        burnTickTimer -= deltaTime;
-
-        if (burnTickTimer <= 0.0f) {
-            takeDamage(burnDamage);
-
-            burnTickTimer =
-                burnTickInterval;
-        }
-
-        if (burnDurationTimer <= 0.0f) {
-            burnDurationTimer = 0.0f;
-            burning = false;
-
-            SDL_Log("Burn ended");
-        }
-    }
-
-    if (!isAlive()) {
-        return;
-    }
-
-    if (shocked) {
-        shockDurationTimer -= deltaTime;
-
-        if (shockDurationTimer <= 0.0f) {
-            shockDurationTimer = 0.0f;
-            shocked = false;
-
-            SDL_Log("Shock ended");
-        }
-    }
-
-    if (frozen) {
-        freezeDurationTimer -= deltaTime;
-
-        if (freezeDurationTimer <= 0.0f) {
-            freezeDurationTimer = 0.0f;
-            frozen = false;
-
-            SDL_Log("Freeze ended");
-        }
-    }
 }
 
 void Enemy::moveX(float amount) {
@@ -196,10 +134,7 @@ float Enemy::getSpeed() const {
     return speed;
 }
 
-void Enemy::setPosition(
-    float newX,
-    float newY
-) {
+void Enemy::setPosition(float newX, float newY) {
     x = newX;
     y = newY;
 }
@@ -208,9 +143,7 @@ int Enemy::getLastSwordAttackHit() const {
     return lastSwordAttackHit;
 }
 
-void Enemy::setLastSwordAttackHit(
-    int attackId
-) {
+void Enemy::setLastSwordAttackHit(int attackId) {
     lastSwordAttackHit = attackId;
 }
 
@@ -220,12 +153,8 @@ void Enemy::applyBurn() {
     }
 
     burning = true;
-
-    burnDurationTimer =
-        burnDuration;
-
-    burnTickTimer =
-        burnTickInterval;
+    burnDurationTimer = burnDuration;
+    burnTickTimer = burnTickInterval;
 
     SDL_Log("Enemy is burning!");
 }
@@ -241,10 +170,7 @@ void Enemy::applyShock() {
 
     shocked = true;
 
-    shockDurationTimer =
-        shockDuration;
-
-    SDL_Log("Enemy is shocked!");
+    SDL_Log("Enemy is permanently shocked!");
 }
 
 bool Enemy::isShocked() const {
@@ -257,9 +183,7 @@ void Enemy::applyFreeze() {
     }
 
     frozen = true;
-
-    freezeDurationTimer =
-        freezeDuration;
+    freezeDurationTimer = freezeDuration;
 
     SDL_Log("Enemy is frozen!");
 }
